@@ -2,6 +2,8 @@ package de.tu_berlin.dima.aim3.naivebayes;
 
 import java.util.StringTokenizer;
 
+import de.tu_berlin.dima.aim3.naivebayes.data.FeatureList;
+
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactString;
