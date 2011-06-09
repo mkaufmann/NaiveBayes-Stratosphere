@@ -1,5 +1,15 @@
 package de.tu_berlin.dima.aim3.naivebayes.classifier;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.apache.mahout.classifier.ConfusionMatrix;
+
 import de.tu_berlin.dima.aim3.naivebayes.data.FeatureList;
 import de.tu_berlin.dima.aim3.naivebayes.data.LabelPair;
 import de.tu_berlin.dima.aim3.naivebayes.io.BayesInputFormats.NaiveBayesDataInputFormat;
@@ -19,8 +29,8 @@ public class NBayesClassifierPlanAssembler implements PlanAssembler {
 	public static class LabelPairIntegerOutputFormat extends TextOutputFormat<LabelPair, PactInteger> {
 		@Override
 		public byte[] writeLine(KeyValuePair<LabelPair, PactInteger> keyValue) {
-			String result = keyValue.getKey().getFirst() + "-" + keyValue.getKey().getSecond()
-			+ " :: " + keyValue.getValue().getValue() + "\n";
+			String result = keyValue.getKey().getFirst() + "::" + keyValue.getKey().getSecond()
+			+ "::" + keyValue.getValue().getValue() + "\n";
 			return result.getBytes();
 		}
 	}
@@ -57,4 +67,49 @@ public class NBayesClassifierPlanAssembler implements PlanAssembler {
 		return new Plan(sink);
 	}
 
+	public static void main(String... args) throws NumberFormatException, IOException {
+		if(args == null) args = new String[0];
+		
+		String resultData    = (args.length > 0 ? args[0] : "file:///home/mkaufmann/datasets/result");
+		
+		Map<String, Map<String, Integer>> confusionMatrix = 
+			new HashMap<String, Map<String, Integer>>();
+		
+		InputStreamReader stream = new InputStreamReader(new FileInputStream(new File(resultData)));
+		BufferedReader in = new BufferedReader(stream);
+		
+		String line = null;
+		while((line =in.readLine()) != null) {
+			String[] triple = line.split("::");
+			if(triple.length == 3) {
+				String correct = triple[0];
+				String label = triple[1];
+				int count = Integer.parseInt(triple[2]);
+				
+				Map<String, Integer> rowMatrix = confusionMatrix.get(correct);
+				if (rowMatrix == null) {
+					rowMatrix = new HashMap<String, Integer>();
+				}
+				
+				rowMatrix.put(label, count);
+				confusionMatrix.put(correct, rowMatrix);
+			}
+		}
+
+		ConfusionMatrix matrix = new ConfusionMatrix(confusionMatrix.keySet(),
+				"default");
+		for (Map.Entry<String, Map<String, Integer>> correctLabelSet : confusionMatrix
+				.entrySet()) {
+			Map<String, Integer> rowMatrix = correctLabelSet.getValue();
+			for (Map.Entry<String, Integer> classifiedLabelSet : rowMatrix
+					.entrySet()) {
+				matrix.addInstance(correctLabelSet.getKey(), classifiedLabelSet
+						.getKey());
+				matrix.putCount(correctLabelSet.getKey(), classifiedLabelSet
+						.getKey(), classifiedLabelSet.getValue());
+			}
+		}
+		
+		System.out.println(matrix.toString());
+	}
 }
