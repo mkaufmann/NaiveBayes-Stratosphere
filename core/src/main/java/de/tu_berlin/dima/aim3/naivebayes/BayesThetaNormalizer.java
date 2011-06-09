@@ -16,9 +16,9 @@ import eu.stratosphere.pact.common.type.base.PactString;
 public class BayesThetaNormalizer {
 	private static double alphaI = 1.0;
 	
-	public static class ThetaFactorsVocabCountSigmaJSigmaK extends CrossStub<PactInteger, PactInteger, PactString, PactDouble, PactNull, ThetaNormalizerFactors> {
+	public static class ThetaFactorsVocabCountSigmaJSigmaK extends CrossStub<PactNull, PactInteger, PactString, PactDouble, PactNull, ThetaNormalizerFactors> {
 		@Override
-		public void cross(PactInteger keyA, PactInteger vocabCount, PactString keyB,
+		public void cross(PactNull keyA, PactInteger vocabCount, PactString keyB,
 				PactDouble sigmaJSigmaK,
 				Collector<PactNull, ThetaNormalizerFactors> out) {
 			ThetaNormalizerFactors factors = new ThetaNormalizerFactors();

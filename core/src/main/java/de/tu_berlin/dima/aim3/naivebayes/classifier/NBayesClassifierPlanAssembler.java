@@ -1,8 +1,8 @@
 package de.tu_berlin.dima.aim3.naivebayes.classifier;
 
-import de.tu_berlin.dima.aim3.naivebayes.NaiveBayesInputFormat;
 import de.tu_berlin.dima.aim3.naivebayes.data.FeatureList;
 import de.tu_berlin.dima.aim3.naivebayes.data.LabelPair;
+import de.tu_berlin.dima.aim3.naivebayes.io.BayesInputFormats.NaiveBayesDataInputFormat;
 import eu.stratosphere.pact.common.contract.DataSinkContract;
 import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
@@ -35,7 +35,7 @@ public class NBayesClassifierPlanAssembler implements PlanAssembler {
 		String outputData    = (args.length > 3 ? args[3] : "file:///home/mkaufmann/datasets/result");
 		
 		DataSourceContract<PactString, FeatureList> source = 
-			new DataSourceContract<PactString, FeatureList>(NaiveBayesInputFormat.class, testData, "Classifier test data");
+			new DataSourceContract<PactString, FeatureList>(NaiveBayesDataInputFormat.class, testData, "Classifier test data");
 		source.setDegreeOfParallelism(noSubTasks);
 		
 		MapContract<PactString, FeatureList, LabelPair, PactInteger> classifier =

@@ -1,10 +1,6 @@
 package de.tu_berlin.dima.aim3.naivebayes.classifier;
 
-import java.io.DataInput;
-import java.io.DataInputStream;
-import java.io.EOFException;
 import java.io.IOException;
-import java.net.URI;
 import java.net.URISyntaxException;
 
 import org.apache.mahout.classifier.bayes.common.BayesParameters;
@@ -12,15 +8,10 @@ import org.apache.mahout.classifier.bayes.datastore.InMemoryBayesDatastore;
 import org.apache.mahout.classifier.bayes.exceptions.InvalidDatastoreException;
 
 import de.tu_berlin.dima.aim3.naivebayes.data.LabelTokenPair;
-import de.tu_berlin.dima.aim3.naivebayes.io.IdfInputFormat;
-import de.tu_berlin.dima.aim3.naivebayes.io.ThetaNormalizedInputFormat;
-import de.tu_berlin.dima.aim3.naivebayes.io.WeightInputFormat;
-import eu.stratosphere.nephele.fs.FSDataInputStream;
-import eu.stratosphere.nephele.fs.FileSystem;
-import eu.stratosphere.nephele.fs.Path;
-import eu.stratosphere.nephele.io.DataInputBuffer;
+import de.tu_berlin.dima.aim3.naivebayes.io.BayesInputFormats.IdfInputFormat;
+import de.tu_berlin.dima.aim3.naivebayes.io.BayesInputFormats.ThetaNormalizedInputFormat;
+import de.tu_berlin.dima.aim3.naivebayes.io.BayesInputFormats.WeightInputFormat;
 import eu.stratosphere.pact.common.type.base.PactDouble;
-import eu.stratosphere.pact.common.type.base.PactPair;
 import eu.stratosphere.pact.common.type.base.PactString;
 
 public class PactBayesDatastore extends InMemoryBayesDatastore {
@@ -69,7 +60,7 @@ public class PactBayesDatastore extends InMemoryBayesDatastore {
 	
 	public static void main(String[] args) throws IOException, URISyntaxException, InvalidDatastoreException{
 		BayesParameters params = new BayesParameters();
-		params.setBasePath("file:///Users/Ringwald/naiveData/outp");
+		params.setBasePath("file:///Users/Ringwald/naiveData/strato/model");
 		//params.set(ClassifyingMapper.MODEL_BASE_PATH, );
 		PactBayesDatastore dataStore = new PactBayesDatastore(params);
 		dataStore.initialize();

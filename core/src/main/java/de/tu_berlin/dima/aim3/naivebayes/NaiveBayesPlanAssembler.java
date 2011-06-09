@@ -4,15 +4,20 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
 
+import de.tu_berlin.dima.aim3.naivebayes.BayesTfIdf.IdfCalculator;
+import de.tu_berlin.dima.aim3.naivebayes.BayesTfIdf.OverallWordCountMapper;
+import de.tu_berlin.dima.aim3.naivebayes.BayesTfIdf.OverallWordcountReducer;
+import de.tu_berlin.dima.aim3.naivebayes.BayesTfIdf.WeightCalculator;
 import de.tu_berlin.dima.aim3.naivebayes.classifier.PactBayesDatastore;
 import de.tu_berlin.dima.aim3.naivebayes.data.FeatureList;
 import de.tu_berlin.dima.aim3.naivebayes.data.LabelTokenPair;
 import de.tu_berlin.dima.aim3.naivebayes.data.NormalizedTokenCountList;
 import de.tu_berlin.dima.aim3.naivebayes.data.ThetaNormalizerFactors;
 import de.tu_berlin.dima.aim3.naivebayes.data.TokenCountPair;
-import de.tu_berlin.dima.aim3.naivebayes.io.IdfOutputFormat;
-import de.tu_berlin.dima.aim3.naivebayes.io.ThetaNormalizedOutputFormat;
-import de.tu_berlin.dima.aim3.naivebayes.io.WeightOutputFormat;
+import de.tu_berlin.dima.aim3.naivebayes.io.BayesInputFormats.NaiveBayesDataInputFormat;
+import de.tu_berlin.dima.aim3.naivebayes.io.BayesOutputFormats.IdfOutputFormat;
+import de.tu_berlin.dima.aim3.naivebayes.io.BayesOutputFormats.ThetaNormalizedOutputFormat;
+import de.tu_berlin.dima.aim3.naivebayes.io.BayesOutputFormats.WeightOutputFormat;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.CrossContract;
 import eu.stratosphere.pact.common.contract.DataSinkContract;
@@ -93,7 +98,7 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 		String sigmaKSigmaJOutputPath = dataOutput + PactBayesDatastore.SIGMA_K_SIGMA_J_DEFAULT_PATH;
 		
 		DataSourceContract<PactString, FeatureList> source = new DataSourceContract<PactString, FeatureList>
-			(NaiveBayesInputFormat.class, dataInput, "Naive Bayes Input");
+			(NaiveBayesDataInputFormat.class, dataInput, "Naive Bayes Input");
 		source.setDegreeOfParallelism(noSubTasks);
 		
 		MapContract<PactString, FeatureList, PactString, NormalizedTokenCountList> featureBaseMapper = 
@@ -151,13 +156,13 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 		weightReducer.setDegreeOfParallelism(noSubTasks);
 		weightReducer.setInput(weightMapper);
 		
-		MapContract<PactString, PactDouble, PactInteger, PactInteger> overallWordCountMapper =
-			new MapContract<PactString, PactDouble, PactInteger, PactInteger>(OverallWordCountMapper.class, "Overall word count mapper");
+		MapContract<PactString, PactDouble, PactNull, PactInteger> overallWordCountMapper =
+			new MapContract<PactString, PactDouble, PactNull, PactInteger>(OverallWordCountMapper.class, "Overall word count mapper");
 		overallWordCountMapper.setDegreeOfParallelism(noSubTasks);
 		overallWordCountMapper.setInput(featureCountReducer); //trainer-featureCount
 		
-		ReduceContract<PactInteger, PactInteger, PactInteger, PactInteger> overallWordCountReducer = 
-			new ReduceContract<PactInteger, PactInteger, PactInteger, PactInteger>(OverallWordcountReducer.class, "Overall word count reducer");
+		ReduceContract<PactNull, PactInteger, PactNull, PactInteger> overallWordCountReducer = 
+			new ReduceContract<PactNull, PactInteger, PactNull, PactInteger>(OverallWordcountReducer.class, "Overall word count reducer");
 		overallWordCountReducer.setDegreeOfParallelism(noSubTasks);
 		overallWordCountReducer.setInput(overallWordCountMapper);
 		//output of overallWordCountReducer is trainer-vocabCount
@@ -210,8 +215,8 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 		tfidfTransformMapper.setDegreeOfParallelism(noSubTasks);
 		tfidfTransformMapper.setInput(idfCalculatorMatcher);
 
-		CrossContract<PactInteger, PactInteger, PactString, PactDouble, PactNull, ThetaNormalizerFactors> thetaFactorsSigmaVocab = 
-			new CrossContract<PactInteger, PactInteger, PactString, PactDouble, PactNull, ThetaNormalizerFactors>(BayesThetaNormalizer.ThetaFactorsVocabCountSigmaJSigmaK.class, "Theta Factors Combiner 1");
+		CrossContract<PactNull, PactInteger, PactString, PactDouble, PactNull, ThetaNormalizerFactors> thetaFactorsSigmaVocab = 
+			new CrossContract<PactNull, PactInteger, PactString, PactDouble, PactNull, ThetaNormalizerFactors>(BayesThetaNormalizer.ThetaFactorsVocabCountSigmaJSigmaK.class, "Theta Factors Combiner 1");
 		thetaFactorsSigmaVocab.setDegreeOfParallelism(noSubTasks);
 		thetaFactorsSigmaVocab.setFirstInput(overallWordCountReducer);
 		thetaFactorsSigmaVocab.setSecondInput(totalSummerReducer);
