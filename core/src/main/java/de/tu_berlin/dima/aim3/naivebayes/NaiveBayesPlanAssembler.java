@@ -5,9 +5,11 @@ import java.util.Iterator;
 import de.tu_berlin.dima.aim3.naivebayes.data.FeatureList;
 import de.tu_berlin.dima.aim3.naivebayes.data.LabelTokenPair;
 import de.tu_berlin.dima.aim3.naivebayes.data.NormalizedTokenCountList;
+import de.tu_berlin.dima.aim3.naivebayes.data.TokenCountPair;
 import eu.stratosphere.pact.common.contract.DataSinkContract;
 import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
+import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.io.TextOutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
@@ -19,9 +21,9 @@ import eu.stratosphere.pact.common.type.base.PactString;
 
 public class NaiveBayesPlanAssembler implements PlanAssembler{
 	
-	public static class LabelTokenDoubleOutFormat extends TextOutputFormat<LabelTokenPair, PactInteger> {
+	public static class LabelTokenDoubleOutFormat extends TextOutputFormat<LabelTokenPair, PactDouble> {
 		@Override
-		public byte[] writeLine(KeyValuePair<LabelTokenPair, PactInteger> pair) {
+		public byte[] writeLine(KeyValuePair<LabelTokenPair, PactDouble> pair) {
 			String str = pair.getKey().getFirst() + "/" + pair.getKey().getSecond() + " :: " + pair.getValue().getValue() + "\r\n";
 			return str.getBytes();
 		}
@@ -110,8 +112,8 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 		dfMapper.setDegreeOfParallelism(noSubTasks);
 		dfMapper.setInput(featureBaseMapper);
 		
-		ReduceContract<LabelTokenPair, PactInteger, LabelTokenPair, PactInteger> dfReducer = 
-			new ReduceContract<LabelTokenPair, PactInteger, LabelTokenPair, PactInteger>(BayesFeatureReducer.DocumentFrequency.class);
+		ReduceContract<LabelTokenPair, PactInteger, PactString, TokenCountPair> dfReducer = 
+			new ReduceContract<LabelTokenPair, PactInteger, PactString, TokenCountPair>(BayesFeatureReducer.DocumentFrequency.class);
 		dfReducer.setDegreeOfParallelism(noSubTasks);
 		dfReducer.setInput(dfMapper);
 		
@@ -125,9 +127,33 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 		weightReducer.setDegreeOfParallelism(noSubTasks);
 		weightReducer.setInput(weightMapper);
 		
-		DataSinkContract<LabelTokenPair, PactInteger> sink = 
-			new DataSinkContract<LabelTokenPair, PactInteger>(LabelTokenDoubleOutFormat.class, dataOutput);
-		sink.setInput(dfReducer);
+		MapContract<PactString, PactInteger, PactInteger, PactInteger> overallWordCountMapper =
+			new MapContract<PactString, PactInteger, PactInteger, PactInteger>(OverallWordCountMapper.class, "Overall word count mapper");
+		overallWordCountMapper.setDegreeOfParallelism(noSubTasks);
+		overallWordCountMapper.setInput(featureCountReducer); //trainer-featureCount
+		
+		ReduceContract<PactInteger, PactInteger, PactInteger, PactInteger> overallWordCountReducer = 
+			new ReduceContract<PactInteger, PactInteger, PactInteger, PactInteger>(OverallWordcountReducer.class, "Overall word count reducer");
+		overallWordCountReducer.setDegreeOfParallelism(noSubTasks);
+		overallWordCountReducer.setInput(overallWordCountMapper);
+		//output of overallWordCountReducer is trainer-vocabCount
+		
+		MatchContract<PactString, PactDouble, TokenCountPair, LabelTokenPair, PactDouble> weightCalculatorMatcher =
+			new MatchContract<PactString, PactDouble, TokenCountPair, LabelTokenPair, PactDouble>(WeightCalculator.class, "Weight Calculator Matcher");
+		weightCalculatorMatcher.setDegreeOfParallelism(noSubTasks);
+		weightCalculatorMatcher.setFirstInput(labelCountReducer); //trainerDocCount
+		weightCalculatorMatcher.setSecondInput(dfReducer); //documentFrequency (trainer-termDocCount)
+		
+		MatchContract<LabelTokenPair, PactDouble, PactDouble, LabelTokenPair, PactDouble> idfCalculatorMatcher = 
+			new MatchContract<LabelTokenPair, PactDouble, PactDouble, LabelTokenPair, PactDouble>(IdfCalculator.class, "Idf Calculator Matcher");
+		idfCalculatorMatcher.setDegreeOfParallelism(noSubTasks);
+		idfCalculatorMatcher.setFirstInput(weightCalculatorMatcher);
+		idfCalculatorMatcher.setSecondInput(weightReducer); //weight (trainer-wordFreq)
+		//output of idfCalculator is trainer-tfIdf
+
+		DataSinkContract<LabelTokenPair, PactDouble> sink = 
+			new DataSinkContract<LabelTokenPair, PactDouble>(LabelTokenDoubleOutFormat.class, dataOutput);
+		sink.setInput(idfCalculatorMatcher);
 		
 		return new Plan(sink);
 	}
