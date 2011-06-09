@@ -22,7 +22,7 @@ public class BayesFeatureMapper  {
 		public void map(final PactString label, final FeatureList features,
 				final Collector<PactString, NormalizedTokenCountList> out) {
 			NormalizedTokenCountList tokenList = new NormalizedTokenCountList();
-		    
+		    //TODO: Could be moved to input reader?
 			if (gramSize > 1) {
 				//TODO:!!!!!
 			} else {
