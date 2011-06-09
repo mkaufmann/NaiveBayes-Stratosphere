@@ -150,10 +150,40 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 		idfCalculatorMatcher.setFirstInput(weightCalculatorMatcher);
 		idfCalculatorMatcher.setSecondInput(weightReducer); //weight (trainer-wordFreq)
 		//output of idfCalculator is trainer-tfIdf
+		
+		MapContract<LabelTokenPair, PactDouble, PactString, PactDouble> featureSummerMapper = 
+			new MapContract<LabelTokenPair, PactDouble, PactString, PactDouble>(BayesWeightMapper.FeatureSummer.class);
+		featureSummerMapper.setDegreeOfParallelism(noSubTasks);
+		featureSummerMapper.setInput(idfCalculatorMatcher);
+		
+		ReduceContract<PactString, PactDouble, PactString, PactDouble> featureSummerReducer = 
+			new ReduceContract<PactString, PactDouble, PactString, PactDouble>(BayesWeightReducer.Summer.class);
+		featureSummerReducer.setDegreeOfParallelism(noSubTasks);
+		featureSummerReducer.setInput(featureSummerMapper);
+		
+		MapContract<LabelTokenPair, PactDouble, PactString, PactDouble> labelSummerMapper = 
+			new MapContract<LabelTokenPair, PactDouble, PactString, PactDouble>(BayesWeightMapper.LabelSummer.class);
+		labelSummerMapper.setDegreeOfParallelism(noSubTasks);
+		labelSummerMapper.setInput(idfCalculatorMatcher);
+		
+		ReduceContract<PactString, PactDouble, PactString, PactDouble> labelSummerReducer = 
+			new ReduceContract<PactString, PactDouble, PactString, PactDouble>(BayesWeightReducer.Summer.class);
+		labelSummerReducer.setDegreeOfParallelism(noSubTasks);
+		labelSummerReducer.setInput(labelSummerMapper);
+		
+		MapContract<LabelTokenPair, PactDouble, PactString, PactDouble> totalSummerMapper = 
+			new MapContract<LabelTokenPair, PactDouble, PactString, PactDouble>(BayesWeightMapper.TotalSummer.class);
+		totalSummerMapper.setDegreeOfParallelism(noSubTasks);
+		totalSummerMapper.setInput(idfCalculatorMatcher);
+		
+		ReduceContract<PactString, PactDouble, PactString, PactDouble> totalSummerReducer = 
+			new ReduceContract<PactString, PactDouble, PactString, PactDouble>(BayesWeightReducer.Summer.class);
+		totalSummerReducer.setDegreeOfParallelism(noSubTasks);
+		totalSummerReducer.setInput(totalSummerMapper);
 
-		DataSinkContract<LabelTokenPair, PactDouble> sink = 
-			new DataSinkContract<LabelTokenPair, PactDouble>(LabelTokenDoubleOutFormat.class, dataOutput);
-		sink.setInput(idfCalculatorMatcher);
+		DataSinkContract<PactString, PactDouble> sink = 
+			new DataSinkContract<PactString, PactDouble>(StringDoubleOutFormat.class, dataOutput);
+		sink.setInput(totalSummerReducer);
 		
 		return new Plan(sink);
 	}
