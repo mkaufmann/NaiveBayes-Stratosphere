@@ -3,6 +3,7 @@ package de.tu_berlin.dima.aim3.naivebayes;
 import java.util.Iterator;
 
 import de.tu_berlin.dima.aim3.naivebayes.data.FeatureList;
+import de.tu_berlin.dima.aim3.naivebayes.data.LabelTokenPair;
 import de.tu_berlin.dima.aim3.naivebayes.data.NormalizedTokenCountList;
 import eu.stratosphere.pact.common.contract.DataSinkContract;
 import eu.stratosphere.pact.common.contract.DataSourceContract;
@@ -18,7 +19,15 @@ import eu.stratosphere.pact.common.type.base.PactString;
 
 public class NaiveBayesPlanAssembler implements PlanAssembler{
 	
-	public static class FeatureCountOutFormat extends TextOutputFormat<PactString, PactDouble> {
+	public static class LabelTokenDoubleOutFormat extends TextOutputFormat<LabelTokenPair, PactInteger> {
+		@Override
+		public byte[] writeLine(KeyValuePair<LabelTokenPair, PactInteger> pair) {
+			String str = pair.getKey().getFirst() + "/" + pair.getKey().getSecond() + " :: " + pair.getValue().getValue() + "\r\n";
+			return str.getBytes();
+		}
+	}
+	
+	public static class StringDoubleOutFormat extends TextOutputFormat<PactString, PactDouble> {
 		@Override
 		public byte[] writeLine(KeyValuePair<PactString, PactDouble> pair) {
 			String str = pair.getKey().getValue() + " :: " + pair.getValue().getValue() + "\r\n";
@@ -26,7 +35,7 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 		}
 	}
 	
-	public static class LabelCountOutFormat extends TextOutputFormat<PactString, PactInteger> {
+	public static class StringIntegerOutFormat extends TextOutputFormat<PactString, PactInteger> {
 		@Override
 		public byte[] writeLine(KeyValuePair<PactString, PactInteger> pair) {
 			String str = pair.getKey().getValue() + " :: " + pair.getValue().getValue() + "\r\n";
@@ -96,9 +105,29 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 		featureTfReducer.setDegreeOfParallelism(noSubTasks);
 		featureTfReducer.setInput(featureTfMapper);
 		
-		DataSinkContract<PactString, PactDouble> sink = 
-			new DataSinkContract<PactString, PactDouble>(FeatureCountOutFormat.class, dataOutput);
-		sink.setInput(featureTfReducer);
+		MapContract<PactString, NormalizedTokenCountList, LabelTokenPair, PactInteger> dfMapper = 
+			new MapContract<PactString, NormalizedTokenCountList, LabelTokenPair, PactInteger>(BayesFeatureMapper.DocumentFrequency.class);
+		dfMapper.setDegreeOfParallelism(noSubTasks);
+		dfMapper.setInput(featureBaseMapper);
+		
+		ReduceContract<LabelTokenPair, PactInteger, LabelTokenPair, PactInteger> dfReducer = 
+			new ReduceContract<LabelTokenPair, PactInteger, LabelTokenPair, PactInteger>(BayesFeatureReducer.DocumentFrequency.class);
+		dfReducer.setDegreeOfParallelism(noSubTasks);
+		dfReducer.setInput(dfMapper);
+		
+		MapContract<PactString, NormalizedTokenCountList, LabelTokenPair, PactDouble> weightMapper = 
+			new MapContract<PactString, NormalizedTokenCountList, LabelTokenPair, PactDouble>(BayesFeatureMapper.Weight.class);
+		weightMapper.setDegreeOfParallelism(noSubTasks);
+		weightMapper.setInput(featureBaseMapper);
+		
+		ReduceContract<LabelTokenPair, PactDouble, LabelTokenPair, PactDouble> weightReducer = 
+			new ReduceContract<LabelTokenPair, PactDouble, LabelTokenPair, PactDouble>(BayesFeatureReducer.Weight.class);
+		weightReducer.setDegreeOfParallelism(noSubTasks);
+		weightReducer.setInput(weightMapper);
+		
+		DataSinkContract<LabelTokenPair, PactInteger> sink = 
+			new DataSinkContract<LabelTokenPair, PactInteger>(LabelTokenDoubleOutFormat.class, dataOutput);
+		sink.setInput(dfReducer);
 		
 		return new Plan(sink);
 	}
