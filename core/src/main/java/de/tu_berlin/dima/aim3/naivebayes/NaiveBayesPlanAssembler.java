@@ -3,7 +3,9 @@ package de.tu_berlin.dima.aim3.naivebayes;
 import java.util.Iterator;
 
 import de.tu_berlin.dima.aim3.naivebayes.data.FeatureList;
+import de.tu_berlin.dima.aim3.naivebayes.data.LabelTokenPair;
 import de.tu_berlin.dima.aim3.naivebayes.data.NormalizedTokenCountList;
+import de.tu_berlin.dima.aim3.naivebayes.data.TokenCountPair;
 import eu.stratosphere.pact.common.contract.DataSinkContract;
 import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
@@ -15,7 +17,6 @@ import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.common.type.base.PactPair;
 import eu.stratosphere.pact.common.type.base.PactString;
 
 public class NaiveBayesPlanAssembler implements PlanAssembler{
@@ -114,14 +115,14 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 		overallWordCountReducer.setInput(overallWordCountMapper);
 		//output of overallWordCountReducer is trainer-vocabCount
 		
-		MatchContract<PactString, PactDouble, PactPair<PactString, PactDouble>, PactPair<PactString,PactString>, PactDouble> weightCalculatorMatcher =
-			new MatchContract<PactString, PactDouble, PactPair<PactString,PactDouble>, PactPair<PactString,PactString>, PactDouble>(WeightCalculator.class, "Weight Calculator Matcher");
+		MatchContract<PactString, PactDouble, TokenCountPair, LabelTokenPair, PactDouble> weightCalculatorMatcher =
+			new MatchContract<PactString, PactDouble, TokenCountPair, LabelTokenPair, PactDouble>(WeightCalculator.class, "Weight Calculator Matcher");
 		weightCalculatorMatcher.setDegreeOfParallelism(noSubTasks);
 		weightCalculatorMatcher.setFirstInput(null); //trainerDocCount
 		weightCalculatorMatcher.setSecondInput(null); //documentFrequency (trainer-termDocCount)
 		
-		MatchContract<PactPair<PactString, PactString>, PactDouble, PactDouble, PactPair<PactString, PactString>, PactDouble> idfCalculatorMatcher = 
-			new MatchContract<PactPair<PactString,PactString>, PactDouble, PactDouble, PactPair<PactString,PactString>, PactDouble>(IdfCalculator.class, "Idf Calculator Matcher");
+		MatchContract<LabelTokenPair, PactDouble, PactDouble, LabelTokenPair, PactDouble> idfCalculatorMatcher = 
+			new MatchContract<LabelTokenPair, PactDouble, PactDouble, LabelTokenPair, PactDouble>(IdfCalculator.class, "Idf Calculator Matcher");
 		idfCalculatorMatcher.setDegreeOfParallelism(noSubTasks);
 		idfCalculatorMatcher.setFirstInput(weightCalculatorMatcher);
 		idfCalculatorMatcher.setSecondInput(null); //weight (trainer-wordFreq)

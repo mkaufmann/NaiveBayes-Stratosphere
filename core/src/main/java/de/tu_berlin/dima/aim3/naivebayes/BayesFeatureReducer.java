@@ -3,6 +3,7 @@ package de.tu_berlin.dima.aim3.naivebayes;
 import java.util.Iterator;
 
 import de.tu_berlin.dima.aim3.naivebayes.data.LabelTokenPair;
+import de.tu_berlin.dima.aim3.naivebayes.data.TokenCountPair;
 
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.ReduceStub;
@@ -58,16 +59,18 @@ public class BayesFeatureReducer {
 	}
 	
 	//TODO: Consider minDf && minSupport
-	public static class DocumentFrequency extends ReduceStub<LabelTokenPair, PactInteger, LabelTokenPair, PactInteger> {
+	public static class DocumentFrequency extends ReduceStub<LabelTokenPair, PactInteger, PactString, TokenCountPair> {
 		@Override
 		public void reduce(LabelTokenPair tokenPair, Iterator<PactInteger> count,
-				Collector<LabelTokenPair, PactInteger> out) {
+				Collector<PactString, TokenCountPair> out) {
 			int sum = 0;
 			while(count.hasNext()) {
 				sum += count.next().getValue();
 			}
-			
-			out.collect(tokenPair, new PactInteger(sum));
+			TokenCountPair tokenCountPair = new TokenCountPair();
+			tokenCountPair.setFirst(tokenPair.getSecond());
+			tokenCountPair.setSecond(new PactInteger(sum));
+			out.collect(tokenPair.getFirst(), tokenCountPair);
 		}
 	}
 	
