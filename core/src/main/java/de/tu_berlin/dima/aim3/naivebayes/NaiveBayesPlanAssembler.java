@@ -5,7 +5,10 @@ import java.util.Iterator;
 import de.tu_berlin.dima.aim3.naivebayes.data.FeatureList;
 import de.tu_berlin.dima.aim3.naivebayes.data.LabelTokenPair;
 import de.tu_berlin.dima.aim3.naivebayes.data.NormalizedTokenCountList;
+import de.tu_berlin.dima.aim3.naivebayes.data.ThetaNormalizerFactors;
 import de.tu_berlin.dima.aim3.naivebayes.data.TokenCountPair;
+import eu.stratosphere.pact.common.contract.CoGroupContract;
+import eu.stratosphere.pact.common.contract.CrossContract;
 import eu.stratosphere.pact.common.contract.DataSinkContract;
 import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
@@ -17,6 +20,7 @@ import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.pact.common.type.base.PactString;
 
 public class NaiveBayesPlanAssembler implements PlanAssembler{
@@ -188,10 +192,33 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 			new ReduceContract<PactString, PactDouble, PactString, PactDouble>(BayesWeightReducer.Summer.class);
 		totalSummerReducer.setDegreeOfParallelism(noSubTasks);
 		totalSummerReducer.setInput(totalSummerMapper);
+		
+		MapContract<LabelTokenPair, PactDouble, PactString, PactDouble> tfidfTransformMapper = 
+			new MapContract<LabelTokenPair, PactDouble, PactString, PactDouble>(BayesThetaNormalizer.TfIdfTransform.class);
+		tfidfTransformMapper.setDegreeOfParallelism(noSubTasks);
+		tfidfTransformMapper.setInput(idfCalculatorMatcher);
 
-		DataSinkContract<LabelTokenPair, PactDouble> sink = 
-			new DataSinkContract<LabelTokenPair, PactDouble>(LabelTokenDoubleOutFormat.class, dataOutput);
-		sink.setInput(idfCalculatorMatcher);
+		CrossContract<PactInteger, PactInteger, PactString, PactDouble, PactNull, ThetaNormalizerFactors> thetaFactorsSigmaVocab = 
+			new CrossContract<PactInteger, PactInteger, PactString, PactDouble, PactNull, ThetaNormalizerFactors>(BayesThetaNormalizer.ThetaFactorsVocabCountSigmaJSigmaK.class);
+		thetaFactorsSigmaVocab.setDegreeOfParallelism(noSubTasks);
+		thetaFactorsSigmaVocab.setFirstInput(overallWordCountReducer);
+		thetaFactorsSigmaVocab.setSecondInput(totalSummerReducer);
+		
+		CrossContract<PactNull, ThetaNormalizerFactors, PactString, PactDouble, PactString, ThetaNormalizerFactors> thetaFactorsLabelWeights = 
+			new CrossContract<PactNull, ThetaNormalizerFactors, PactString, PactDouble, PactString, ThetaNormalizerFactors>(BayesThetaNormalizer.ThetaFactorsLabelWeights.class);
+		thetaFactorsLabelWeights.setDegreeOfParallelism(noSubTasks);
+		thetaFactorsLabelWeights.setFirstInput(thetaFactorsSigmaVocab);
+		thetaFactorsLabelWeights.setSecondInput(labelSummerReducer);
+		
+		CoGroupContract<PactString, PactDouble, ThetaNormalizerFactors, PactString, PactDouble> thetaNormalizedLabels =
+			new CoGroupContract<PactString, PactDouble, ThetaNormalizerFactors, PactString, PactDouble>(BayesThetaNormalizer.ThetaNormalize.class);
+		thetaNormalizedLabels.setDegreeOfParallelism(noSubTasks);
+		thetaNormalizedLabels.setFirstInput(thetaFactorsLabelWeights);
+		thetaNormalizedLabels.setSecondInput(idfCalculatorMatcher);
+		
+		DataSinkContract<PactString, PactDouble> sink = 
+			new DataSinkContract<PactString, PactDouble>(StringDoubleOutFormat.class, dataOutput);
+		sink.setInput(thetaNormalizedLabels);
 		
 		return new Plan(sink);
 	}
