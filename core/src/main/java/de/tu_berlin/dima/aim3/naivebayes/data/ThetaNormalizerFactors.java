@@ -7,9 +7,9 @@ import java.io.IOException;
 import eu.stratosphere.pact.common.type.Value;
 
 public class ThetaNormalizerFactors implements Value {
-	double sigmaJSimgaK;
-	int vocabCount;
-	double labelWeight;
+	double sigmaJSimgaK = -1;
+	int vocabCount = -1;
+	double labelWeight = -1;
 	
 	
 	public double getSigmaJSimgaK() {

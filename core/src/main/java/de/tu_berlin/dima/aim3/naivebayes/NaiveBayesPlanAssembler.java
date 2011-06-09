@@ -139,8 +139,8 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 		weightReducer.setDegreeOfParallelism(noSubTasks);
 		weightReducer.setInput(weightMapper);
 		
-		MapContract<PactString, PactInteger, PactInteger, PactInteger> overallWordCountMapper =
-			new MapContract<PactString, PactInteger, PactInteger, PactInteger>(OverallWordCountMapper.class, "Overall word count mapper");
+		MapContract<PactString, PactDouble, PactInteger, PactInteger> overallWordCountMapper =
+			new MapContract<PactString, PactDouble, PactInteger, PactInteger>(OverallWordCountMapper.class, "Overall word count mapper");
 		overallWordCountMapper.setDegreeOfParallelism(noSubTasks);
 		overallWordCountMapper.setInput(featureCountReducer); //trainer-featureCount
 		
@@ -213,8 +213,8 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 		CoGroupContract<PactString, PactDouble, ThetaNormalizerFactors, PactString, PactDouble> thetaNormalizedLabels =
 			new CoGroupContract<PactString, PactDouble, ThetaNormalizerFactors, PactString, PactDouble>(BayesThetaNormalizer.ThetaNormalize.class);
 		thetaNormalizedLabels.setDegreeOfParallelism(noSubTasks);
-		thetaNormalizedLabels.setFirstInput(thetaFactorsLabelWeights);
-		thetaNormalizedLabels.setSecondInput(idfCalculatorMatcher);
+		thetaNormalizedLabels.setFirstInput(tfidfTransformMapper);
+		thetaNormalizedLabels.setSecondInput(thetaFactorsLabelWeights);
 		
 		DataSinkContract<PactString, PactDouble> sink = 
 			new DataSinkContract<PactString, PactDouble>(StringDoubleOutFormat.class, dataOutput);
