@@ -16,7 +16,7 @@ import eu.stratosphere.pact.common.type.base.PactString;
 
 public class NBayesClassifierPlanAssembler implements PlanAssembler {
 
-	private static class LabelPairIntegerOutputFormat extends TextOutputFormat<LabelPair, PactInteger> {
+	public static class LabelPairIntegerOutputFormat extends TextOutputFormat<LabelPair, PactInteger> {
 		@Override
 		public byte[] writeLine(KeyValuePair<LabelPair, PactInteger> keyValue) {
 			String result = keyValue.getKey().getFirst() + "-" + keyValue.getKey().getSecond()

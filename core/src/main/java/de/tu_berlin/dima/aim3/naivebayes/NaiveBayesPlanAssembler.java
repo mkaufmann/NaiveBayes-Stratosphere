@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
 
+import de.tu_berlin.dima.aim3.naivebayes.classifier.PactBayesDatastore;
 import de.tu_berlin.dima.aim3.naivebayes.data.FeatureList;
 import de.tu_berlin.dima.aim3.naivebayes.data.LabelTokenPair;
 import de.tu_berlin.dima.aim3.naivebayes.data.NormalizedTokenCountList;
@@ -85,11 +86,11 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 		String dataInput = (args.length > 1 ? args[1] : "file:///home/mkaufmann/datasets/train");
 		String dataOutput    = (args.length > 2 ? args[2] : "file:///home/mkaufmann/datasets/result");
 		
-		String idfOutputPath = dataOutput + "/trainer-tfIdf/";
-		String thetaNormalizerOutputPath = dataOutput + "/trainer-thetaNormalizer/";
-		String sigmaJOutputPath = dataOutput + "/trainer-weights/Sigma_j/";
-		String sigmaKOutputPath = dataOutput + "/trainer-weights/Sigma_k/";
-		String sigmaKSigmaJOutputPath = dataOutput + "/trainer-weights/Sigma_kSigma_j/";
+		String idfOutputPath = dataOutput + PactBayesDatastore.WEIGHT_DEFAULT_PATH;
+		String thetaNormalizerOutputPath = dataOutput + PactBayesDatastore.THETA_NORMALIZER_DEFAULT_PATH;
+		String sigmaJOutputPath = dataOutput + PactBayesDatastore.SIGMA_J_DEFAULT_PATH;
+		String sigmaKOutputPath = dataOutput + PactBayesDatastore.SIGMA_K_DEFAULT_PATH;
+		String sigmaKSigmaJOutputPath = dataOutput + PactBayesDatastore.SIGMA_K_SIGMA_J_DEFAULT_PATH;
 		
 		DataSourceContract<PactString, FeatureList> source = new DataSourceContract<PactString, FeatureList>
 			(NaiveBayesInputFormat.class, dataInput, "Naive Bayes Input");
