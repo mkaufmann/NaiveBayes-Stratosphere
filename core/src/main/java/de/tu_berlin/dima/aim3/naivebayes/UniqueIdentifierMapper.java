@@ -2,6 +2,8 @@ package de.tu_berlin.dima.aim3.naivebayes;
 
 import java.util.HashSet;
 
+import de.tu_berlin.dima.aim3.naivebayes.data.FeatureList;
+
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.MapStub;
 import eu.stratosphere.pact.common.type.base.PactInteger;
