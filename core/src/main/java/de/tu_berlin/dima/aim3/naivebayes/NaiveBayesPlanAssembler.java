@@ -7,13 +7,16 @@ import java.util.LinkedList;
 import eu.stratosphere.pact.common.contract.DataSinkContract;
 import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
+import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.io.TextOutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.common.type.base.PactPair;
 import eu.stratosphere.pact.common.type.base.PactString;
 
 public class NaiveBayesPlanAssembler implements PlanAssembler,
@@ -96,6 +99,33 @@ public class NaiveBayesPlanAssembler implements PlanAssembler,
 		
 		labelAggregator.setInput(source);
 		dataSinkData.setInput(labelAggregator);
+		
+		
+		
+		MapContract<PactString, PactInteger, PactInteger, PactInteger> overallWordCountMapper =
+			new MapContract<PactString, PactInteger, PactInteger, PactInteger>(OverallWordCountMapper.class, "Overall word count mapper");
+		overallWordCountMapper.setDegreeOfParallelism(noSubTasks);
+		overallWordCountMapper.setInput(null); //trainer-featureCount
+		
+		ReduceContract<PactInteger, PactInteger, PactInteger, PactInteger> overallWordCountReducer = 
+			new ReduceContract<PactInteger, PactInteger, PactInteger, PactInteger>(OverallWordcountReducer.class, "Overall word count reducer");
+		overallWordCountReducer.setDegreeOfParallelism(noSubTasks);
+		overallWordCountReducer.setInput(overallWordCountMapper);
+		//output of overallWordCountReducer is trainer-vocabCount
+		
+		MatchContract<PactString, PactDouble, PactPair<PactString, PactDouble>, PactPair<PactString,PactString>, PactDouble> weightCalculatorMatcher =
+			new MatchContract<PactString, PactDouble, PactPair<PactString,PactDouble>, PactPair<PactString,PactString>, PactDouble>(WeightCalculator.class, "Weight Calculator Matcher");
+		weightCalculatorMatcher.setDegreeOfParallelism(noSubTasks);
+		weightCalculatorMatcher.setFirstInput(null); //trainerDocCount
+		weightCalculatorMatcher.setSecondInput(null); //documentFrequency (trainer-termDocCount)
+		
+		MatchContract<PactPair<PactString, PactString>, PactDouble, PactDouble, PactPair<PactString, PactString>, PactDouble> idfCalculatorMatcher = 
+			new MatchContract<PactPair<PactString,PactString>, PactDouble, PactDouble, PactPair<PactString,PactString>, PactDouble>(IdfCalculator.class, "Idf Calculator Matcher");
+		idfCalculatorMatcher.setDegreeOfParallelism(noSubTasks);
+		idfCalculatorMatcher.setFirstInput(weightCalculatorMatcher);
+		idfCalculatorMatcher.setSecondInput(null); //weight (trainer-wordFreq)
+		//output of idfCalculator is trainer-tfIdf
+		
 		
 		Collection<DataSinkContract<?,?>> dataSinks = new LinkedList<DataSinkContract<?,?>>();
 		dataSinks.add(dataSinkIds);
