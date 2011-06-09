@@ -1,12 +1,17 @@
 package de.tu_berlin.dima.aim3.naivebayes;
 
+import java.util.Collection;
 import java.util.Iterator;
+import java.util.LinkedList;
 
 import de.tu_berlin.dima.aim3.naivebayes.data.FeatureList;
 import de.tu_berlin.dima.aim3.naivebayes.data.LabelTokenPair;
 import de.tu_berlin.dima.aim3.naivebayes.data.NormalizedTokenCountList;
 import de.tu_berlin.dima.aim3.naivebayes.data.ThetaNormalizerFactors;
 import de.tu_berlin.dima.aim3.naivebayes.data.TokenCountPair;
+import de.tu_berlin.dima.aim3.naivebayes.io.IdfOutputFormat;
+import de.tu_berlin.dima.aim3.naivebayes.io.ThetaNormalizedOutputFormat;
+import de.tu_berlin.dima.aim3.naivebayes.io.WeightOutputFormat;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.CrossContract;
 import eu.stratosphere.pact.common.contract.DataSinkContract;
@@ -79,6 +84,12 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 		int noSubTasks   = (args.length > 0 ? Integer.parseInt(args[0]) : -1);
 		String dataInput = (args.length > 1 ? args[1] : "file:///home/mkaufmann/datasets/train");
 		String dataOutput    = (args.length > 2 ? args[2] : "file:///home/mkaufmann/datasets/result");
+		
+		String idfOutputPath = dataOutput + "/trainer-tfIdf/";
+		String thetaNormalizerOutputPath = dataOutput + "/trainer-thetaNormalizer/";
+		String sigmaJOutputPath = dataOutput + "/trainer-weights/Sigma_j/";
+		String sigmaKOutputPath = dataOutput + "/trainer-weights/Sigma_k/";
+		String sigmaKSigmaJOutputPath = dataOutput + "/trainer-weights/Sigma_kSigma_j/";
 		
 		DataSourceContract<PactString, FeatureList> source = new DataSourceContract<PactString, FeatureList>
 			(NaiveBayesInputFormat.class, dataInput, "Naive Bayes Input");
@@ -216,11 +227,43 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 		thetaNormalizedLabels.setFirstInput(tfidfTransformMapper);
 		thetaNormalizedLabels.setSecondInput(thetaFactorsLabelWeights);
 		
-		DataSinkContract<PactString, PactDouble> sink = 
-			new DataSinkContract<PactString, PactDouble>(StringDoubleOutFormat.class, dataOutput);
-		sink.setInput(thetaNormalizedLabels);
 		
-		return new Plan(sink);
+		
+		
+		DataSinkContract<LabelTokenPair, PactDouble> idfSink = 
+			new DataSinkContract<LabelTokenPair, PactDouble>(IdfOutputFormat.class, idfOutputPath, "IDF Sink");
+		idfSink.setInput(idfCalculatorMatcher);
+		idfSink.setDegreeOfParallelism(noSubTasks);
+		
+		DataSinkContract<PactString, PactDouble> thetaNormalizedSink = 
+			new DataSinkContract<PactString, PactDouble>(ThetaNormalizedOutputFormat.class, thetaNormalizerOutputPath, "Theta Normalizer Sink");
+		thetaNormalizedSink.setInput(thetaNormalizedLabels);
+		thetaNormalizedSink.setDegreeOfParallelism(noSubTasks);
+		
+		DataSinkContract<PactString, PactDouble> sigmaKSigmaJSink = 
+			new DataSinkContract<PactString, PactDouble>(WeightOutputFormat.class, sigmaKSigmaJOutputPath, "Total Summer Sink");
+		sigmaKSigmaJSink.setInput(totalSummerReducer);
+		sigmaKSigmaJSink.setDegreeOfParallelism(1);
+		
+		DataSinkContract<PactString, PactDouble> sigmaJSink = 
+			new DataSinkContract<PactString, PactDouble>(WeightOutputFormat.class, sigmaJOutputPath, "Feature Summer Sink");
+		sigmaJSink.setInput(featureSummerReducer);
+		sigmaJSink.setDegreeOfParallelism(noSubTasks);
+		
+		DataSinkContract<PactString, PactDouble> sigmaKSink = 
+			new DataSinkContract<PactString, PactDouble>(WeightOutputFormat.class, sigmaKOutputPath, "Label Summer Sink");
+		sigmaKSink.setInput(labelSummerReducer);
+		sigmaKSink.setDegreeOfParallelism(1);
+		
+		
+		Collection<DataSinkContract<?, ?>> sinks = new LinkedList<DataSinkContract<?,?>>();
+		sinks.add(idfSink);
+		sinks.add(thetaNormalizedSink);
+		sinks.add(sigmaKSink);
+		sinks.add(sigmaJSink);
+		sinks.add(sigmaKSigmaJSink);
+		
+		return new Plan(sinks);
 	}
 
 }
