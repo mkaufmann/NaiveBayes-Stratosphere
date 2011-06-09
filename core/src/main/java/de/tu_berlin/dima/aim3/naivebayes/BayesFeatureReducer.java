@@ -79,7 +79,7 @@ public class BayesFeatureReducer {
 		@Override
 		public void reduce(LabelTokenPair tokenPair, Iterator<PactDouble> count,
 				Collector<LabelTokenPair, PactDouble> out) {
-			int sum = 0;
+			double sum = 0.0;
 			while(count.hasNext()) {
 				sum += count.next().getValue();
 			}

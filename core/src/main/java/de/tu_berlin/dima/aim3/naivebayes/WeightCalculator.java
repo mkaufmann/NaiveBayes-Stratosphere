@@ -17,14 +17,14 @@ import eu.stratosphere.pact.common.type.base.PactString;
  * @author ringwald
  *
  */
-public class WeightCalculator extends MatchStub<PactString, PactDouble, TokenCountPair, LabelTokenPair, PactDouble> {
+public class WeightCalculator extends MatchStub<PactString, PactInteger, TokenCountPair, LabelTokenPair, PactDouble> {
 
 	@Override
-	public void match(PactString label, PactDouble trainerDocCount, TokenCountPair documentFrequency,
+	public void match(PactString label, PactInteger trainerDocCount, TokenCountPair documentFrequency,
 			Collector<LabelTokenPair, PactDouble> out) {
-        Double labelDocumentCount = trainerDocCount.getValue();
-        double logIdf = Math.log(labelDocumentCount / documentFrequency.getSecond().getValue());
-        out.collect(new LabelTokenPair(label,documentFrequency.getFirst()) {}, new PactDouble(logIdf));
+        double labelDocumentCount = (double)trainerDocCount.getValue();
+        double logIdf = Math.log(labelDocumentCount / (double)documentFrequency.getSecond().getValue());
+        out.collect(new LabelTokenPair(label,documentFrequency.getFirst()), new PactDouble(logIdf));
 	}
 
 }

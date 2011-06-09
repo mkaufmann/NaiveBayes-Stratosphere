@@ -29,6 +29,14 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 		}
 	}
 	
+	public static class StringTokenCountPairOutFormat extends TextOutputFormat<PactString, TokenCountPair> {
+		@Override
+		public byte[] writeLine(KeyValuePair<PactString, TokenCountPair> pair) {
+			String str = pair.getKey().getValue() + " :: " + pair.getValue().getFirst() + " : " + pair.getValue().getSecond() + "\r\n";
+			return str.getBytes();
+		}
+	}
+	
 	public static class StringDoubleOutFormat extends TextOutputFormat<PactString, PactDouble> {
 		@Override
 		public byte[] writeLine(KeyValuePair<PactString, PactDouble> pair) {
@@ -138,8 +146,8 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 		overallWordCountReducer.setInput(overallWordCountMapper);
 		//output of overallWordCountReducer is trainer-vocabCount
 		
-		MatchContract<PactString, PactDouble, TokenCountPair, LabelTokenPair, PactDouble> weightCalculatorMatcher =
-			new MatchContract<PactString, PactDouble, TokenCountPair, LabelTokenPair, PactDouble>(WeightCalculator.class, "Weight Calculator Matcher");
+		MatchContract<PactString, PactInteger, TokenCountPair, LabelTokenPair, PactDouble> weightCalculatorMatcher =
+			new MatchContract<PactString, PactInteger, TokenCountPair, LabelTokenPair, PactDouble>(WeightCalculator.class, "Weight Calculator Matcher");
 		weightCalculatorMatcher.setDegreeOfParallelism(noSubTasks);
 		weightCalculatorMatcher.setFirstInput(labelCountReducer); //trainerDocCount
 		weightCalculatorMatcher.setSecondInput(dfReducer); //documentFrequency (trainer-termDocCount)
@@ -181,9 +189,9 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 		totalSummerReducer.setDegreeOfParallelism(noSubTasks);
 		totalSummerReducer.setInput(totalSummerMapper);
 
-		DataSinkContract<PactString, PactDouble> sink = 
-			new DataSinkContract<PactString, PactDouble>(StringDoubleOutFormat.class, dataOutput);
-		sink.setInput(totalSummerReducer);
+		DataSinkContract<LabelTokenPair, PactDouble> sink = 
+			new DataSinkContract<LabelTokenPair, PactDouble>(LabelTokenDoubleOutFormat.class, dataOutput);
+		sink.setInput(idfCalculatorMatcher);
 		
 		return new Plan(sink);
 	}
