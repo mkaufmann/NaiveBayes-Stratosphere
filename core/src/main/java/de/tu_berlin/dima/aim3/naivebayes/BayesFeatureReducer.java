@@ -5,6 +5,7 @@ import java.util.Iterator;
 import de.tu_berlin.dima.aim3.naivebayes.data.LabelTokenPair;
 import de.tu_berlin.dima.aim3.naivebayes.data.TokenCountPair;
 
+import eu.stratosphere.pact.common.contract.OutputContract.SameKey;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.ReduceStub;
 import eu.stratosphere.pact.common.type.base.PactDouble;
@@ -14,6 +15,7 @@ import eu.stratosphere.pact.common.type.base.PactString;
 public class BayesFeatureReducer {
 	private static double minDf = -1;
 	
+	@SameKey
 	public static class LabelCount extends ReduceStub<PactString, PactInteger, PactString, PactInteger> {
 		@Override
 		public void reduce(PactString label, Iterator<PactInteger> count,
@@ -27,6 +29,7 @@ public class BayesFeatureReducer {
 		}
 	}
 	
+	@SameKey
 	public static class FeatureTf extends ReduceStub<PactString, PactDouble, PactString, PactDouble> {
 		@Override
 		public void reduce(PactString label, Iterator<PactDouble> count,
@@ -40,6 +43,7 @@ public class BayesFeatureReducer {
 		}
 	}
 	
+	@SameKey
 	public static class FeatureCount extends ReduceStub<PactString, PactDouble, PactString, PactDouble> {
 		@Override
 		public void reduce(PactString label, Iterator<PactDouble> count,
@@ -75,6 +79,7 @@ public class BayesFeatureReducer {
 	}
 	
 	//TODO: Consider minDf && minSupport
+	@SameKey
 	public static class Weight extends ReduceStub<LabelTokenPair, PactDouble, LabelTokenPair, PactDouble> {
 		@Override
 		public void reduce(LabelTokenPair tokenPair, Iterator<PactDouble> count,

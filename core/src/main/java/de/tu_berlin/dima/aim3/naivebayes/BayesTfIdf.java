@@ -4,6 +4,8 @@ import java.util.Iterator;
 
 import de.tu_berlin.dima.aim3.naivebayes.data.LabelTokenPair;
 import de.tu_berlin.dima.aim3.naivebayes.data.TokenCountPair;
+import eu.stratosphere.pact.common.contract.OutputContract.SameKey;
+import eu.stratosphere.pact.common.contract.OutputContract.SuperKey;
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.MapStub;
@@ -27,6 +29,7 @@ public class BayesTfIdf {
 	}
 
 
+	@SameKey
 	public static class IdfCalculator extends MatchStub<LabelTokenPair, PactDouble, PactDouble, LabelTokenPair, PactDouble> {
 
 		@Override
@@ -40,6 +43,7 @@ public class BayesTfIdf {
 	}
 	
 	@Combinable
+	@SameKey
 	public static class OverallWordcountReducer extends ReduceStub<PactNull, PactInteger, PactNull, PactInteger> {
 
 		@Override
@@ -65,7 +69,7 @@ public class BayesTfIdf {
 		}
 	}
 	
-	
+	//@SuperKey ??
 	public static class WeightCalculator extends MatchStub<PactString, PactInteger, TokenCountPair, LabelTokenPair, PactDouble> {
 
 		@Override

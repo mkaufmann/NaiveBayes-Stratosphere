@@ -19,6 +19,7 @@ import de.tu_berlin.dima.aim3.naivebayes.io.BayesOutputFormats.IdfOutputFormat;
 import de.tu_berlin.dima.aim3.naivebayes.io.BayesOutputFormats.ThetaNormalizedOutputFormat;
 import de.tu_berlin.dima.aim3.naivebayes.io.BayesOutputFormats.WeightOutputFormat;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
+import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.CrossContract;
 import eu.stratosphere.pact.common.contract.DataSinkContract;
 import eu.stratosphere.pact.common.contract.DataSourceContract;
@@ -91,6 +92,13 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 		String dataInput = (args.length > 1 ? args[1] : "file:///home/mkaufmann/datasets/train");
 		String dataOutput    = (args.length > 2 ? args[2] : "file:///home/mkaufmann/datasets/result");
 		
+		int numLabels = 50; //Distinct labels
+		int numFeatures = 1500; //Distinct features
+		int numFeaturesPerLabel = 1000; //Avg distinct features per label
+		int doubleSize = 8;
+		int intSize = 4;
+		int labelSize = 16;
+		
 		String idfOutputPath = dataOutput + PactBayesDatastore.WEIGHT_DEFAULT_PATH;
 		String thetaNormalizerOutputPath = dataOutput + PactBayesDatastore.THETA_NORMALIZER_DEFAULT_PATH;
 		String sigmaJOutputPath = dataOutput + PactBayesDatastore.SIGMA_J_DEFAULT_PATH;
@@ -105,6 +113,7 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 			new MapContract<PactString, FeatureList, PactString, NormalizedTokenCountList>(BayesFeatureMapper.Base.class, "Feature/Token generator");
 		featureBaseMapper.setDegreeOfParallelism(noSubTasks);
 		featureBaseMapper.setInput(source);
+		featureBaseMapper.getCompilerHints().setKeyCardinality(numLabels);
 		
 		MapContract<PactString, NormalizedTokenCountList, PactString, PactDouble> featureCountMapper = 
 			new MapContract<PactString, NormalizedTokenCountList, PactString, PactDouble>(BayesFeatureMapper.FeatureCount.class, "Feature Count Mapper");
@@ -115,6 +124,7 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 			new ReduceContract<PactString, PactDouble, PactString, PactDouble>(BayesFeatureReducer.FeatureCount.class, "Feature Count Reducer");
 		featureCountReducer.setDegreeOfParallelism(noSubTasks);
 		featureCountReducer.setInput(featureCountMapper);
+		setCompilerHints(featureCountReducer, numLabels, 1, doubleSize+labelSize, 1);
 		
 		MapContract<PactString, NormalizedTokenCountList, PactString, PactInteger> labelCountMapper = 
 			new MapContract<PactString, NormalizedTokenCountList, PactString, PactInteger>(BayesFeatureMapper.LabelCount.class, "Label Count Mapper");
@@ -125,6 +135,7 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 			new ReduceContract<PactString, PactInteger, PactString, PactInteger>(BayesFeatureReducer.LabelCount.class, "Label Count Reducer");
 		labelCountReducer.setDegreeOfParallelism(noSubTasks);
 		labelCountReducer.setInput(labelCountMapper);
+		setCompilerHints(labelCountReducer, numLabels, 1, intSize+labelSize, 1);
 		
 		MapContract<PactString, NormalizedTokenCountList, PactString, PactDouble> featureTfMapper = 
 			new MapContract<PactString, NormalizedTokenCountList, PactString, PactDouble>(BayesFeatureMapper.FeatureTf.class, "Feature Frequency Mapper");
@@ -135,6 +146,7 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 			new ReduceContract<PactString, PactDouble, PactString, PactDouble>(BayesFeatureReducer.FeatureTf.class, "Feature Frequency Reducer");
 		featureTfReducer.setDegreeOfParallelism(noSubTasks);
 		featureTfReducer.setInput(featureTfMapper);
+		setCompilerHints(featureTfReducer, numLabels, 1, labelSize+doubleSize, 1);
 		
 		MapContract<PactString, NormalizedTokenCountList, LabelTokenPair, PactInteger> dfMapper = 
 			new MapContract<PactString, NormalizedTokenCountList, LabelTokenPair, PactInteger>(BayesFeatureMapper.DocumentFrequency.class, "Document Frequency Mapper");
@@ -145,6 +157,7 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 			new ReduceContract<LabelTokenPair, PactInteger, PactString, TokenCountPair>(BayesFeatureReducer.DocumentFrequency.class, "Document Frequency Reducer");
 		dfReducer.setDegreeOfParallelism(noSubTasks);
 		dfReducer.setInput(dfMapper);
+		dfReducer.getCompilerHints().setKeyCardinality(numFeatures);
 		
 		MapContract<PactString, NormalizedTokenCountList, LabelTokenPair, PactDouble> weightMapper = 
 			new MapContract<PactString, NormalizedTokenCountList, LabelTokenPair, PactDouble>(BayesFeatureMapper.Weight.class, "Weight Mapper");
@@ -155,6 +168,7 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 			new ReduceContract<LabelTokenPair, PactDouble, LabelTokenPair, PactDouble>(BayesFeatureReducer.Weight.class, "Weight Reducer");
 		weightReducer.setDegreeOfParallelism(noSubTasks);
 		weightReducer.setInput(weightMapper);
+		setCompilerHints(weightReducer, numLabels*numFeaturesPerLabel, 1, labelSize*2+doubleSize, 1);
 		
 		MapContract<PactString, PactDouble, PactNull, PactInteger> overallWordCountMapper =
 			new MapContract<PactString, PactDouble, PactNull, PactInteger>(OverallWordCountMapper.class, "Overall word count mapper");
@@ -165,6 +179,7 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 			new ReduceContract<PactNull, PactInteger, PactNull, PactInteger>(OverallWordcountReducer.class, "Overall word count reducer");
 		overallWordCountReducer.setDegreeOfParallelism(noSubTasks);
 		overallWordCountReducer.setInput(overallWordCountMapper);
+		overallWordCountReducer.getCompilerHints().setKeyCardinality(1);
 		//output of overallWordCountReducer is trainer-vocabCount
 		
 		MatchContract<PactString, PactInteger, TokenCountPair, LabelTokenPair, PactDouble> weightCalculatorMatcher =
@@ -270,6 +285,23 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 		sinks.add(sigmaKSigmaJSink);
 		
 		return new Plan(sinks);
+	}
+	
+	private void setCompilerHints(Contract c, long keyCardinality, float recordsPerStubCall,
+			float bytesPerRecord, float valuesPerKey) {
+		if(keyCardinality > 0) {
+			c.getCompilerHints().setKeyCardinality(keyCardinality);
+		}
+		if(recordsPerStubCall > 0) {
+			c.getCompilerHints().setAvgRecordsEmittedPerStubCall(recordsPerStubCall);
+		}
+		if(bytesPerRecord > 0) {
+			c.getCompilerHints().setAvgBytesPerRecord(bytesPerRecord);
+		}
+		if(valuesPerKey > 0) {
+			c.getCompilerHints().setAvgNumValuesPerKey(valuesPerKey);
+		}
+		
 	}
 
 }

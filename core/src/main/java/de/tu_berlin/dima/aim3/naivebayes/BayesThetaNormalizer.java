@@ -4,6 +4,7 @@ import java.util.Iterator;
 
 import de.tu_berlin.dima.aim3.naivebayes.data.LabelTokenPair;
 import de.tu_berlin.dima.aim3.naivebayes.data.ThetaNormalizerFactors;
+import eu.stratosphere.pact.common.contract.OutputContract.SameKey;
 import eu.stratosphere.pact.common.stub.CoGroupStub;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.CrossStub;
@@ -46,6 +47,7 @@ public class BayesThetaNormalizer {
 		}
 	}
 	
+	@SameKey
 	public static class ThetaNormalize extends CoGroupStub<PactString, PactDouble, ThetaNormalizerFactors, PactString, PactDouble> {		
 		@Override
 		public void coGroup(PactString label, Iterator<PactDouble> tfidfs,
