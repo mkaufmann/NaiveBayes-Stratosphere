@@ -32,21 +32,21 @@ public class BayesFeatureReducer {
 	@SameKey
 	public static class FeatureTf extends ReduceStub<PactString, PactDouble, PactString, PactDouble> {
 		@Override
-		public void reduce(PactString label, Iterator<PactDouble> count,
+		public void reduce(PactString feature, Iterator<PactDouble> count,
 				Collector<PactString, PactDouble> out) {
 			double sum = 0;
 			while(count.hasNext()) {
 				sum += count.next().getValue();
 			}
 			
-			out.collect(label, new PactDouble(sum));
+			out.collect(feature, new PactDouble(sum));
 		}
 	}
 	
 	@SameKey
 	public static class FeatureCount extends ReduceStub<PactString, PactDouble, PactString, PactDouble> {
 		@Override
-		public void reduce(PactString label, Iterator<PactDouble> count,
+		public void reduce(PactString feature, Iterator<PactDouble> count,
 				Collector<PactString, PactDouble> out) {
 			double currentCorpusDf = 0;
 			while(count.hasNext()) {
@@ -54,10 +54,10 @@ public class BayesFeatureReducer {
 			}
 			
 			if (minDf > 0.0 && currentCorpusDf < minDf) {
-				System.out.println("Skipped " + label.getValue() + " less than minDf");
+				System.out.println("Skipped " + feature.getValue() + " less than minDf");
 				// skip items that have less than the specified minSupport.
 			} else {
-				out.collect(label, new PactDouble(currentCorpusDf));
+				out.collect(feature, new PactDouble(currentCorpusDf));
 			}
 		}
 	}
