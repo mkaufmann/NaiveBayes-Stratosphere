@@ -5,7 +5,6 @@ import java.util.Iterator;
 import de.tu_berlin.dima.aim3.naivebayes.data.LabelTokenPair;
 import de.tu_berlin.dima.aim3.naivebayes.data.TokenCountPair;
 import eu.stratosphere.pact.common.contract.OutputContract.SameKey;
-import eu.stratosphere.pact.common.contract.OutputContract.SuperKey;
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.MapStub;
@@ -60,12 +59,7 @@ public class BayesTfIdf {
 		@Override
 		public void combine(PactNull key, Iterator<PactInteger> wordCountIt,
 				Collector<PactNull, PactInteger> out) {
-			int sum = 0;
-			while (wordCountIt.hasNext())
-			{
-				sum += wordCountIt.next().getValue();
-			}
-			out.collect(key, new PactInteger(sum));
+			reduce(key, wordCountIt, out);
 		}
 	}
 	
