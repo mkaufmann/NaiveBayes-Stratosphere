@@ -10,8 +10,8 @@ import de.tu_berlin.dima.aim3.naivebayes.BayesTfIdf.OverallWordcountReducer;
 import de.tu_berlin.dima.aim3.naivebayes.BayesTfIdf.WeightCalculator;
 import de.tu_berlin.dima.aim3.naivebayes.classifier.PactBayesDatastore;
 import de.tu_berlin.dima.aim3.naivebayes.data.FeatureList;
-import de.tu_berlin.dima.aim3.naivebayes.data.LabelTokenPair;
-import de.tu_berlin.dima.aim3.naivebayes.data.NormalizedTokenCountList;
+import de.tu_berlin.dima.aim3.naivebayes.data.LabelFeaturePair;
+import de.tu_berlin.dima.aim3.naivebayes.data.TfList;
 import de.tu_berlin.dima.aim3.naivebayes.data.ThetaNormalizerFactors;
 import de.tu_berlin.dima.aim3.naivebayes.data.TokenCountPair;
 import de.tu_berlin.dima.aim3.naivebayes.io.BayesInputFormats.NaiveBayesDataInputFormat;
@@ -37,9 +37,9 @@ import eu.stratosphere.pact.common.type.base.PactString;
 
 public class NaiveBayesPlanAssembler implements PlanAssembler{
 	
-	public static class LabelTokenDoubleOutFormat extends TextOutputFormat<LabelTokenPair, PactDouble> {
+	public static class LabelTokenDoubleOutFormat extends TextOutputFormat<LabelFeaturePair, PactDouble> {
 		@Override
-		public byte[] writeLine(KeyValuePair<LabelTokenPair, PactDouble> pair) {
+		public byte[] writeLine(KeyValuePair<LabelFeaturePair, PactDouble> pair) {
 			String str = pair.getKey().getFirst() + "/" + pair.getKey().getSecond() + " :: " + pair.getValue().getValue() + "\r\n";
 			return str.getBytes();
 		}
@@ -113,27 +113,27 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 		source.setDegreeOfParallelism(noSubTasks);
 		source.getCompilerHints().setAvgBytesPerRecord(1500);
 		
-		MapContract<PactString, FeatureList, PactString, NormalizedTokenCountList> featureBaseMapper = 
-			new MapContract<PactString, FeatureList, PactString, NormalizedTokenCountList>(BayesFeatureMapper.Base.class, "Feature/Token generator");
+		MapContract<PactString, FeatureList, PactString, TfList> featureBaseMapper = 
+			new MapContract<PactString, FeatureList, PactString, TfList>(BayesFeatureMapper.Base.class, "Feature/Token generator");
 		featureBaseMapper.setDegreeOfParallelism(noSubTasks);
 		featureBaseMapper.setInput(source);
 		featureBaseMapper.getCompilerHints().setKeyCardinality(numLabels);
 		setCompilerHints(featureBaseMapper, numLabels, 1, labelSize + avgFeaturesPerDocument*(featureSize+intSize), -1);
 		
-		MapContract<PactString, NormalizedTokenCountList, PactString, PactDouble> featureCountMapper = 
-			new MapContract<PactString, NormalizedTokenCountList, PactString, PactDouble>(BayesFeatureMapper.FeatureCount.class, "Feature Count Mapper");
+		MapContract<PactString, TfList, PactString, PactInteger> featureCountMapper = 
+			new MapContract<PactString, TfList, PactString, PactInteger>(BayesFeatureMapper.DistinctFeatureCount.class, "Feature Count Mapper");
 		featureCountMapper.setDegreeOfParallelism(noSubTasks);
 		featureCountMapper.setInput(featureBaseMapper);
-		setCompilerHints(featureCountMapper, numFeatures, avgFeaturesPerDocument, featureSize+doubleSize, -1);
+		setCompilerHints(featureCountMapper, numFeatures, avgFeaturesPerDocument, featureSize+intSize, -1);
 		
-		ReduceContract<PactString, PactDouble, PactString, PactDouble> featureCountReducer = 
-			new ReduceContract<PactString, PactDouble, PactString, PactDouble>(BayesFeatureReducer.FeatureCount.class, "Feature Count Reducer");
+		ReduceContract<PactString, PactInteger, PactString, PactInteger> featureCountReducer = 
+			new ReduceContract<PactString, PactInteger, PactString, PactInteger>(BayesFeatureReducer.FeatureCount.class, "Feature Count Reducer");
 		featureCountReducer.setDegreeOfParallelism(noSubTasks);
 		featureCountReducer.setInput(featureCountMapper);
 		setCompilerHints(featureCountReducer, numFeatures, 1, labelSize+intSize, 1);
 		
-		MapContract<PactString, NormalizedTokenCountList, PactString, PactInteger> labelCountMapper = 
-			new MapContract<PactString, NormalizedTokenCountList, PactString, PactInteger>(BayesFeatureMapper.LabelCount.class, "Label Count Mapper");
+		MapContract<PactString, TfList, PactString, PactInteger> labelCountMapper = 
+			new MapContract<PactString, TfList, PactString, PactInteger>(BayesFeatureMapper.LabelCount.class, "Label Count Mapper");
 		labelCountMapper.setDegreeOfParallelism(noSubTasks);
 		labelCountMapper.setInput(featureBaseMapper);
 		setCompilerHints(labelCountMapper, numLabels, 1, labelSize+intSize, 1);
@@ -144,45 +144,45 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 		labelCountReducer.setInput(labelCountMapper);
 		setCompilerHints(labelCountReducer, numLabels, 1, labelSize+intSize, 1);
 		
-		MapContract<PactString, NormalizedTokenCountList, PactString, PactDouble> featureTfMapper = 
-			new MapContract<PactString, NormalizedTokenCountList, PactString, PactDouble>(BayesFeatureMapper.FeatureTf.class, "Feature Frequency Mapper");
+		MapContract<PactString, TfList, PactString, PactInteger> featureTfMapper = 
+			new MapContract<PactString, TfList, PactString, PactInteger>(BayesFeatureMapper.FeatureTf.class, "Feature Frequency Mapper");
 		featureTfMapper.setDegreeOfParallelism(noSubTasks);
 		featureTfMapper.setInput(featureBaseMapper);
-		setCompilerHints(featureTfMapper, numFeatures, avgFeaturesPerDocument, featureSize+doubleSize, -1);
+		setCompilerHints(featureTfMapper, numFeatures, avgFeaturesPerDocument, featureSize+intSize, -1);
 		
-		ReduceContract<PactString, PactDouble, PactString, PactDouble> featureTfReducer = 
-			new ReduceContract<PactString, PactDouble, PactString, PactDouble>(BayesFeatureReducer.FeatureTf.class, "Feature Frequency Reducer");
+		ReduceContract<PactString, PactInteger, PactString, PactInteger> featureTfReducer = 
+			new ReduceContract<PactString, PactInteger, PactString, PactInteger>(BayesFeatureReducer.FeatureTf.class, "Feature Frequency Reducer");
 		featureTfReducer.setDegreeOfParallelism(noSubTasks);
 		featureTfReducer.setInput(featureTfMapper);
-		setCompilerHints(featureTfReducer, numFeatures, 1, featureSize+doubleSize, 1);
+		setCompilerHints(featureTfReducer, numFeatures, 1, featureSize+intSize, 1);
 		
-		MapContract<PactString, NormalizedTokenCountList, LabelTokenPair, PactInteger> dfMapper = 
-			new MapContract<PactString, NormalizedTokenCountList, LabelTokenPair, PactInteger>(BayesFeatureMapper.DocumentFrequency.class, "Document Frequency Mapper");
+		MapContract<PactString, TfList, LabelFeaturePair, PactInteger> dfMapper = 
+			new MapContract<PactString, TfList, LabelFeaturePair, PactInteger>(BayesFeatureMapper.DocumentFrequency.class, "Document Frequency Mapper");
 		dfMapper.setDegreeOfParallelism(noSubTasks);
 		dfMapper.setInput(featureBaseMapper);
 		setCompilerHints(dfMapper, numLabels*avgFeaturesPerLabel, avgFeaturesPerDocument, labelSize+featureSize+intSize, -1);
 		
-		ReduceContract<LabelTokenPair, PactInteger, PactString, TokenCountPair> dfReducer = 
-			new ReduceContract<LabelTokenPair, PactInteger, PactString, TokenCountPair>(BayesFeatureReducer.DocumentFrequency.class, "Document Frequency Reducer");
+		ReduceContract<LabelFeaturePair, PactInteger, PactString, TokenCountPair> dfReducer = 
+			new ReduceContract<LabelFeaturePair, PactInteger, PactString, TokenCountPair>(BayesFeatureReducer.DocumentFrequency.class, "Document Frequency Reducer");
 		dfReducer.setDegreeOfParallelism(noSubTasks);
 		dfReducer.setInput(dfMapper);
 		dfReducer.getCompilerHints().setKeyCardinality(numFeatures);
 		setCompilerHints(dfReducer, numLabels, 1, labelSize+featureSize+doubleSize, -1);
 		
-		MapContract<PactString, NormalizedTokenCountList, LabelTokenPair, PactDouble> weightMapper = 
-			new MapContract<PactString, NormalizedTokenCountList, LabelTokenPair, PactDouble>(BayesFeatureMapper.Weight.class, "Weight Mapper");
+		MapContract<PactString, TfList, LabelFeaturePair, PactDouble> weightMapper = 
+			new MapContract<PactString, TfList, LabelFeaturePair, PactDouble>(BayesFeatureMapper.NormalizedTf.class, "Weight Mapper");
 		weightMapper.setDegreeOfParallelism(noSubTasks);
 		weightMapper.setInput(featureBaseMapper);
 		setCompilerHints(weightMapper, numLabels*avgFeaturesPerDocument, avgFeaturesPerDocument, labelSize+featureSize+doubleSize, -1);
 		
-		ReduceContract<LabelTokenPair, PactDouble, LabelTokenPair, PactDouble> weightReducer = 
-			new ReduceContract<LabelTokenPair, PactDouble, LabelTokenPair, PactDouble>(BayesFeatureReducer.Weight.class, "Weight Reducer");
+		ReduceContract<LabelFeaturePair, PactDouble, LabelFeaturePair, PactDouble> weightReducer = 
+			new ReduceContract<LabelFeaturePair, PactDouble, LabelFeaturePair, PactDouble>(BayesFeatureReducer.Weight.class, "Weight Reducer");
 		weightReducer.setDegreeOfParallelism(noSubTasks);
 		weightReducer.setInput(weightMapper);
 		setCompilerHints(weightReducer, numLabels*avgFeaturesPerLabel, 1, labelSize+featureSize+doubleSize, 1);
 		
-		MapContract<PactString, PactDouble, PactNull, PactInteger> overallWordCountMapper =
-			new MapContract<PactString, PactDouble, PactNull, PactInteger>(OverallWordCountMapper.class, "Overall word count mapper");
+		MapContract<PactString, PactInteger, PactNull, PactInteger> overallWordCountMapper =
+			new MapContract<PactString, PactInteger, PactNull, PactInteger>(OverallWordCountMapper.class, "Overall word count mapper");
 		overallWordCountMapper.setDegreeOfParallelism(noSubTasks);
 		overallWordCountMapper.setInput(featureCountReducer); //trainer-featureCount
 		setCompilerHints(overallWordCountMapper, 1, 1, intSize, -1);
@@ -193,23 +193,23 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 		overallWordCountReducer.setInput(overallWordCountMapper);
 		setCompilerHints(overallWordCountReducer, 1, 1, intSize, 1);
 		
-		MatchContract<PactString, PactInteger, TokenCountPair, LabelTokenPair, PactDouble> weightCalculatorMatcher =
-			new MatchContract<PactString, PactInteger, TokenCountPair, LabelTokenPair, PactDouble>(WeightCalculator.class, "Weight Calculator Matcher");
+		MatchContract<PactString, PactInteger, TokenCountPair, LabelFeaturePair, PactDouble> weightCalculatorMatcher =
+			new MatchContract<PactString, PactInteger, TokenCountPair, LabelFeaturePair, PactDouble>(WeightCalculator.class, "Weight Calculator Matcher");
 		weightCalculatorMatcher.setDegreeOfParallelism(noSubTasks);
 		weightCalculatorMatcher.setFirstInput(labelCountReducer); //trainerDocCount
 		weightCalculatorMatcher.setSecondInput(dfReducer); //documentFrequency (trainer-termDocCount)
 		setCompilerHints(weightCalculatorMatcher, numLabels*avgFeaturesPerLabel, 1, labelSize+featureSize+doubleSize, -1);
 		
-		MatchContract<LabelTokenPair, PactDouble, PactDouble, LabelTokenPair, PactDouble> idfCalculatorMatcher = 
-			new MatchContract<LabelTokenPair, PactDouble, PactDouble, LabelTokenPair, PactDouble>(IdfCalculator.class, "Idf Calculator Matcher");
+		MatchContract<LabelFeaturePair, PactDouble, PactDouble, LabelFeaturePair, PactDouble> idfCalculatorMatcher = 
+			new MatchContract<LabelFeaturePair, PactDouble, PactDouble, LabelFeaturePair, PactDouble>(IdfCalculator.class, "Idf Calculator Matcher");
 		idfCalculatorMatcher.setDegreeOfParallelism(noSubTasks);
 		idfCalculatorMatcher.setFirstInput(weightCalculatorMatcher);
 		idfCalculatorMatcher.setSecondInput(weightReducer); //weight (trainer-wordFreq)
 		setCompilerHints(idfCalculatorMatcher, numLabels*avgFeaturesPerLabel, 1, labelSize+featureSize+doubleSize, 1);
 		//output of idfCalculator is trainer-tfIdf
 		
-		MapContract<LabelTokenPair, PactDouble, PactString, PactDouble> featureSummerMapper = 
-			new MapContract<LabelTokenPair, PactDouble, PactString, PactDouble>(BayesWeightMapper.FeatureSummer.class, "Feature Idf Summer Mapper");
+		MapContract<LabelFeaturePair, PactDouble, PactString, PactDouble> featureSummerMapper = 
+			new MapContract<LabelFeaturePair, PactDouble, PactString, PactDouble>(BayesWeightMapper.FeatureSummer.class, "Feature Idf Summer Mapper");
 		featureSummerMapper.setDegreeOfParallelism(noSubTasks);
 		featureSummerMapper.setInput(idfCalculatorMatcher);
 		setCompilerHints(featureSummerMapper, numLabels, 1, featureSize, -1);
@@ -220,8 +220,8 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 		featureSummerReducer.setInput(featureSummerMapper);
 		setCompilerHints(featureSummerReducer, numFeatures, 1, featureSize+doubleSize, 1);
 		
-		MapContract<LabelTokenPair, PactDouble, PactString, PactDouble> labelSummerMapper = 
-			new MapContract<LabelTokenPair, PactDouble, PactString, PactDouble>(BayesWeightMapper.LabelSummer.class, "Weight Idf Summer Mapper");
+		MapContract<LabelFeaturePair, PactDouble, PactString, PactDouble> labelSummerMapper = 
+			new MapContract<LabelFeaturePair, PactDouble, PactString, PactDouble>(BayesWeightMapper.LabelSummer.class, "Weight Idf Summer Mapper");
 		labelSummerMapper.setDegreeOfParallelism(noSubTasks);
 		labelSummerMapper.setInput(idfCalculatorMatcher);
 		setCompilerHints(labelSummerMapper, numLabels, 1, labelSize+doubleSize, -1);
@@ -232,8 +232,8 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 		labelSummerReducer.setInput(labelSummerMapper);
 		setCompilerHints(labelSummerReducer, numLabels, 1, labelSize+doubleSize, numLabels);
 		
-		MapContract<LabelTokenPair, PactDouble, PactString, PactDouble> totalSummerMapper = 
-			new MapContract<LabelTokenPair, PactDouble, PactString, PactDouble>(BayesWeightMapper.TotalSummer.class, "Total Sum Mapper");
+		MapContract<LabelFeaturePair, PactDouble, PactString, PactDouble> totalSummerMapper = 
+			new MapContract<LabelFeaturePair, PactDouble, PactString, PactDouble>(BayesWeightMapper.TotalSummer.class, "Total Sum Mapper");
 		totalSummerMapper.setDegreeOfParallelism(noSubTasks);
 		totalSummerMapper.setInput(idfCalculatorMatcher);
 		setCompilerHints(totalSummerMapper, 1, 1, 4+doubleSize, -1);
@@ -244,8 +244,8 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 		totalSummerReducer.setInput(totalSummerMapper);
 		setCompilerHints(totalSummerReducer, 1, 1, 4+doubleSize, 1);
 		
-		MapContract<LabelTokenPair, PactDouble, PactString, PactDouble> tfidfTransformMapper = 
-			new MapContract<LabelTokenPair, PactDouble, PactString, PactDouble>(BayesThetaNormalizer.TfIdfTransform.class, "Tfidf Label Extractor");
+		MapContract<LabelFeaturePair, PactDouble, PactString, PactDouble> tfidfTransformMapper = 
+			new MapContract<LabelFeaturePair, PactDouble, PactString, PactDouble>(BayesThetaNormalizer.TfIdfTransform.class, "Tfidf Label Extractor");
 		tfidfTransformMapper.setDegreeOfParallelism(noSubTasks);
 		tfidfTransformMapper.setInput(idfCalculatorMatcher);
 		setCompilerHints(tfidfTransformMapper, numLabels, 1, labelSize+doubleSize, -1);
@@ -274,8 +274,8 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 		
 		
 		
-		DataSinkContract<LabelTokenPair, PactDouble> idfSink = 
-			new DataSinkContract<LabelTokenPair, PactDouble>(IdfOutputFormat.class, idfOutputPath, "IDF Sink");
+		DataSinkContract<LabelFeaturePair, PactDouble> idfSink = 
+			new DataSinkContract<LabelFeaturePair, PactDouble>(IdfOutputFormat.class, idfOutputPath, "IDF Sink");
 		idfSink.setInput(idfCalculatorMatcher);
 		idfSink.setDegreeOfParallelism(noSubTasks);
 		

@@ -3,8 +3,8 @@ package de.tu_berlin.dima.aim3.naivebayes;
 import java.util.Map.Entry;
 
 import de.tu_berlin.dima.aim3.naivebayes.data.FeatureList;
-import de.tu_berlin.dima.aim3.naivebayes.data.LabelTokenPair;
-import de.tu_berlin.dima.aim3.naivebayes.data.NormalizedTokenCountList;
+import de.tu_berlin.dima.aim3.naivebayes.data.LabelFeaturePair;
+import de.tu_berlin.dima.aim3.naivebayes.data.TfList;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.MapStub;
 import eu.stratosphere.pact.common.type.base.PactDouble;
@@ -13,88 +13,98 @@ import eu.stratosphere.pact.common.type.base.PactString;
 
 public class BayesFeatureMapper  {
 	private static final PactInteger INT_ONE = new PactInteger(1);
-	private static final PactDouble DOUBLE_ONE = new PactDouble(1);
 	
 	private static int gramSize = 1;
 	
-	public static class Base extends MapStub<PactString, FeatureList, PactString, NormalizedTokenCountList> {
+	/**
+	 * Counts the length normalized and tf transformed, term frequency per feature per document
+	 * @author mkaufmann
+	 *
+	 */
+	public static class Base extends MapStub<PactString, FeatureList, PactString, TfList> {
 		@Override
 		public void map(final PactString label, final FeatureList features,
-				final Collector<PactString, NormalizedTokenCountList> out) {
-			NormalizedTokenCountList tokenList = new NormalizedTokenCountList();
+				final Collector<PactString, TfList> out) {
+			TfList featureList = new TfList();
 			
 			//Count # of times a feature occurs in document
 			if (gramSize > 1) {
 				//TODO:!!!!!
 			} else {
 				for (PactString token : features) {
-					if (tokenList.containsKey(token)) {
-						tokenList.put(token, 1 + tokenList.get(token));
+					if (featureList.containsKey(token)) {
+						featureList.put(token, 1 + featureList.get(token));
 					} else {
-						tokenList.put(token, 1);
+						featureList.put(token, 1);
 					}
 				}
 			}
 			
-			// factor = sqrt((sum of all feature counts in documents)^2)
-			double lengthNormalisationFactor = 0;
-			for (Entry<PactString, Integer> entry : tokenList.entrySet()) {
-				int tokenCount = entry.getValue();
-				lengthNormalisationFactor += tokenCount * tokenCount;
-			}
-			lengthNormalisationFactor = Math.sqrt(lengthNormalisationFactor);
-		    
-			tokenList.setLengthNormalized(lengthNormalisationFactor);
-			
-			out.collect(label, tokenList);
+			out.collect(label, featureList);
 		}
 	}
 	
-	// Output Document Frequency per Word per Class
-	public static class DocumentFrequency extends MapStub<PactString, NormalizedTokenCountList, LabelTokenPair, PactInteger> {		
+	// Output Document Frequency per Feature per Class
+	public static class DocumentFrequency extends MapStub<PactString, TfList, LabelFeaturePair, PactInteger> {		
 		@Override
-		public void map(PactString label, NormalizedTokenCountList tokenList,
-				Collector<LabelTokenPair, PactInteger> out) {
-			for (Entry<PactString, Integer> entry : tokenList.entrySet()) {
-				PactString token = entry.getKey();
+		public void map(PactString label, TfList featureList,
+				Collector<LabelFeaturePair, PactInteger> out) {
+			for (Entry<PactString, Integer> entry : featureList.entrySet()) {
+				PactString feature = entry.getKey();
 				
-				LabelTokenPair dfTuple = new LabelTokenPair();
-		        dfTuple.setFirst(label);
-		        dfTuple.setSecond(token);
-		        out.collect(dfTuple, INT_ONE);
+				LabelFeaturePair labelFeature = new LabelFeaturePair();
+		        labelFeature.setFirst(label);
+		        labelFeature.setSecond(feature);
+		        out.collect(labelFeature, INT_ONE);
 			}
 		}
 	}
 	
-	// Corpus Document Frequency (FEATURE_COUNT)
-	public static class FeatureCount extends MapStub<PactString, NormalizedTokenCountList, PactString, PactDouble> {		
+	/**
+	 * Count # of occurrences per feature in all documents
+	 * 
+	 * Maps each feature to one
+	 */
+	public static class DistinctFeatureCount extends MapStub<PactString, TfList, PactString, PactInteger> {		
 		@Override
-		public void map(PactString label, NormalizedTokenCountList tokenList,
-				Collector<PactString, PactDouble> out) {
-			for (Entry<PactString, Integer> entry : tokenList.entrySet()) {
-				PactString token = entry.getKey();
-		        out.collect(token, DOUBLE_ONE);
+		public void map(PactString label, TfList featureList,
+				Collector<PactString, PactInteger> out) {
+			for (Entry<PactString, Integer> entry : featureList.entrySet()) {
+				PactString feature = entry.getKey();
+		        out.collect(feature, INT_ONE);
 			}
 		}
 
 	}
 	
 	// Corpus Term Frequency (FEATURE_TF)
-	public static class FeatureTf extends MapStub<PactString, NormalizedTokenCountList, PactString, PactDouble> {
+	/**
+	 * # of occurences per feature
+	 */
+	public static class FeatureTf extends MapStub<PactString, TfList, PactString, PactInteger> {
 		@Override
-		public void map(PactString label, NormalizedTokenCountList tokenList,
-				Collector<PactString, PactDouble> out) {
-			for (Entry<PactString, Integer> entry : tokenList.entrySet()) {
-				PactString token = entry.getKey();
-				out.collect(token, new PactDouble(tokenList.getLengthNormalized()));
+		public void map(PactString label, TfList featureList,
+				Collector<PactString, PactInteger> out) {
+			for (Entry<PactString, Integer> entry : featureList.entrySet()) {
+				PactString feature = entry.getKey();
+				int tf = entry.getValue();
+				
+				out.collect(feature, new PactInteger(tf));
 			}
 		}
 
 	}
 
-	public static class LabelCount extends MapStub<PactString, NormalizedTokenCountList, PactString, PactInteger> {
+	/**
+	 * Count # of occurrences per label in all documents.
+	 * 
+	 * Maps each label to 1. 
+	 * @author mkaufmann
+	 *
+	 */
+	public static class LabelCount extends MapStub<PactString, TfList, PactString, PactInteger> {
 		@Override
-		public void map(PactString label, NormalizedTokenCountList tokenList,
+		public void map(PactString label, TfList featureList,
 				Collector<PactString, PactInteger> out) {
 		    out.collect(label, INT_ONE);
 		}
@@ -103,20 +113,29 @@ public class BayesFeatureMapper  {
 	
     // Output Length Normalized + TF Transformed Frequency per Word per Class
     // Log(1 + D_ij)/SQRT( SIGMA(k, D_kj) )
-	public static class Weight extends MapStub<PactString, NormalizedTokenCountList, LabelTokenPair, PactDouble> {
+	public static class NormalizedTf extends MapStub<PactString, TfList, LabelFeaturePair, PactDouble> {
 		@Override
-		public void map(PactString label, NormalizedTokenCountList tokenList,
-				Collector<LabelTokenPair, PactDouble> out) {
-			for (Entry<PactString, Integer> entry : tokenList.entrySet()) {
-				PactString token = entry.getKey();
-				int tokenCount = entry.getValue();
+		public void map(PactString label, TfList featureList,
+				Collector<LabelFeaturePair, PactDouble> out) {
+			// factor = sqrt((sum of all feature counts in documents)^2)
+			double lengthNormalisationFactor = 0;
+			for (Entry<PactString, Integer> entry : featureList.entrySet()) {
+				int featureCount = entry.getValue();
+				lengthNormalisationFactor += featureCount * featureCount;
+			}
+			lengthNormalisationFactor = Math.sqrt(lengthNormalisationFactor);
+			
+			//Normalize feature frequency
+			for (Entry<PactString, Integer> entry : featureList.entrySet()) {
+				PactString feature = entry.getKey();
+				int tf = entry.getValue();
 				
-				LabelTokenPair tuple = new LabelTokenPair();
+				LabelFeaturePair tuple = new LabelFeaturePair();
 				tuple.setFirst(label);
-				tuple.setSecond(token);
+				tuple.setSecond(feature);
 				
-				PactDouble f = new PactDouble(Math.log(1.0 + tokenCount) / tokenList.getLengthNormalized());
-				out.collect(tuple, f);
+				PactDouble normalizedTf = new PactDouble(Math.log(1.0 + tf) / lengthNormalisationFactor);
+				out.collect(tuple, normalizedTf);
 			}
 		}
 

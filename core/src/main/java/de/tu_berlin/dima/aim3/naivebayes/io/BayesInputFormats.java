@@ -5,7 +5,7 @@ import java.net.URISyntaxException;
 import java.util.StringTokenizer;
 
 import de.tu_berlin.dima.aim3.naivebayes.data.FeatureList;
-import de.tu_berlin.dima.aim3.naivebayes.data.LabelTokenPair;
+import de.tu_berlin.dima.aim3.naivebayes.data.LabelFeaturePair;
 
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.type.KeyValuePair;
@@ -20,7 +20,7 @@ public class BayesInputFormats {
 		}
 	}
 	
-	public static class IdfInputFormat extends BinaryInputFormat<LabelTokenPair, PactDouble> {
+	public static class IdfInputFormat extends BinaryInputFormat<LabelFeaturePair, PactDouble> {
 		public IdfInputFormat(String path) throws IOException, URISyntaxException {
 			super(path);
 		}

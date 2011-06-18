@@ -2,7 +2,7 @@ package de.tu_berlin.dima.aim3.naivebayes;
 
 import java.util.Iterator;
 
-import de.tu_berlin.dima.aim3.naivebayes.data.LabelTokenPair;
+import de.tu_berlin.dima.aim3.naivebayes.data.LabelFeaturePair;
 import de.tu_berlin.dima.aim3.naivebayes.data.ThetaNormalizerFactors;
 import eu.stratosphere.pact.common.contract.OutputContract.SameKey;
 import eu.stratosphere.pact.common.stub.CoGroupStub;
@@ -39,9 +39,9 @@ public class BayesThetaNormalizer {
 		}
 	}
 	
-	public static class TfIdfTransform extends MapStub<LabelTokenPair, PactDouble, PactString, PactDouble> {
+	public static class TfIdfTransform extends MapStub<LabelFeaturePair, PactDouble, PactString, PactDouble> {
 		@Override
-		public void map(LabelTokenPair labelToken, PactDouble tfidf,
+		public void map(LabelFeaturePair labelToken, PactDouble tfidf,
 				Collector<PactString, PactDouble> out) {
 			out.collect(labelToken.getFirst(), tfidf);
 		}

@@ -7,7 +7,7 @@ import org.apache.mahout.classifier.bayes.common.BayesParameters;
 import org.apache.mahout.classifier.bayes.datastore.InMemoryBayesDatastore;
 import org.apache.mahout.classifier.bayes.exceptions.InvalidDatastoreException;
 
-import de.tu_berlin.dima.aim3.naivebayes.data.LabelTokenPair;
+import de.tu_berlin.dima.aim3.naivebayes.data.LabelFeaturePair;
 import de.tu_berlin.dima.aim3.naivebayes.io.BayesInputFormats.IdfInputFormat;
 import de.tu_berlin.dima.aim3.naivebayes.io.BayesInputFormats.ThetaNormalizedInputFormat;
 import de.tu_berlin.dima.aim3.naivebayes.io.BayesInputFormats.WeightInputFormat;
@@ -69,14 +69,14 @@ public class PactBayesDatastore extends InMemoryBayesDatastore {
 
 	private void loadWeightMatrix(String path) throws IOException, URISyntaxException {
 		IdfInputFormat input = new IdfInputFormat(path);
-		LabelTokenPair labelTokenPair = new LabelTokenPair();
+		LabelFeaturePair labelTokenPair = new LabelFeaturePair();
 		PactDouble weight = new PactDouble();
 		while (input.readPair(labelTokenPair, weight))
 		{
 			super.loadFeatureWeight(labelTokenPair.getSecond().getValue(), 
 					labelTokenPair.getFirst().getValue(), weight.getValue());	
 			//System.out.println("Feature Weight: " + labelTokenPair.getFirst().getValue() + " : " + labelTokenPair.getSecond().getValue() + " :: " + weight.getValue());
-			labelTokenPair = new LabelTokenPair();
+			labelTokenPair = new LabelFeaturePair();
 			weight = new PactDouble();
 		}
 	}
