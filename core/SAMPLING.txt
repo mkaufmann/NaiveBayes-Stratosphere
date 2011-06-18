@@ -1,0 +1,16 @@
+Sampling on the prepared data
+
+cd traindir/
+num labels = ls -lh | wc -l
+num training samples = cat * | wc -l
+total size = du -h
+
+avg record size = total size / num training samples
+num distinct features = cat comment_file.txt | tr " " "\n" | sort | uniq -c | wc -l
+...
+
+Wikipedia:
+# samples = 1230913
+avg size p. Records = 3800 bytes
+num distinct features = 9698957
+num distinct features per record ≃ 120

@@ -96,9 +96,10 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 		int numFeatures = 150000; //Distinct features
 		int avgFeaturesPerDocument = 300;
 		int avgFeaturesPerLabel = 15000; //Avg distinct features per label
+		
 		int doubleSize = 8;
 		int intSize = 4;
-		int labelSize = 16;
+		int labelSize = 16; 
 		int featureSize = 16;
 		
 		String idfOutputPath = dataOutput + PactBayesDatastore.WEIGHT_DEFAULT_PATH;
@@ -184,13 +185,13 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 			new MapContract<PactString, PactDouble, PactNull, PactInteger>(OverallWordCountMapper.class, "Overall word count mapper");
 		overallWordCountMapper.setDegreeOfParallelism(noSubTasks);
 		overallWordCountMapper.setInput(featureCountReducer); //trainer-featureCount
+		setCompilerHints(overallWordCountMapper, 1, 1, intSize, -1);
 		
 		ReduceContract<PactNull, PactInteger, PactNull, PactInteger> overallWordCountReducer = 
 			new ReduceContract<PactNull, PactInteger, PactNull, PactInteger>(OverallWordcountReducer.class, "Overall word count reducer");
 		overallWordCountReducer.setDegreeOfParallelism(noSubTasks);
 		overallWordCountReducer.setInput(overallWordCountMapper);
-		overallWordCountReducer.getCompilerHints().setKeyCardinality(1);
-		//output of overallWordCountReducer is trainer-vocabCount
+		setCompilerHints(overallWordCountReducer, 1, 1, intSize, 1);
 		
 		MatchContract<PactString, PactInteger, TokenCountPair, LabelTokenPair, PactDouble> weightCalculatorMatcher =
 			new MatchContract<PactString, PactInteger, TokenCountPair, LabelTokenPair, PactDouble>(WeightCalculator.class, "Weight Calculator Matcher");
@@ -223,21 +224,25 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 			new MapContract<LabelTokenPair, PactDouble, PactString, PactDouble>(BayesWeightMapper.LabelSummer.class, "Weight Idf Summer Mapper");
 		labelSummerMapper.setDegreeOfParallelism(noSubTasks);
 		labelSummerMapper.setInput(idfCalculatorMatcher);
+		setCompilerHints(labelSummerMapper, numLabels, 1, labelSize+doubleSize, -1);
 		
 		ReduceContract<PactString, PactDouble, PactString, PactDouble> labelSummerReducer = 
 			new ReduceContract<PactString, PactDouble, PactString, PactDouble>(BayesWeightReducer.Summer.class, "Weight Idf Summer Reducer");
 		labelSummerReducer.setDegreeOfParallelism(noSubTasks);
 		labelSummerReducer.setInput(labelSummerMapper);
+		setCompilerHints(labelSummerReducer, numLabels, 1, labelSize+doubleSize, numLabels);
 		
 		MapContract<LabelTokenPair, PactDouble, PactString, PactDouble> totalSummerMapper = 
 			new MapContract<LabelTokenPair, PactDouble, PactString, PactDouble>(BayesWeightMapper.TotalSummer.class, "Total Sum Mapper");
 		totalSummerMapper.setDegreeOfParallelism(noSubTasks);
 		totalSummerMapper.setInput(idfCalculatorMatcher);
+		setCompilerHints(totalSummerMapper, 1, 1, 4+doubleSize, -1);
 		
 		ReduceContract<PactString, PactDouble, PactString, PactDouble> totalSummerReducer = 
 			new ReduceContract<PactString, PactDouble, PactString, PactDouble>(BayesWeightReducer.Summer.class, "Total Sum Reducer");
 		totalSummerReducer.setDegreeOfParallelism(noSubTasks);
 		totalSummerReducer.setInput(totalSummerMapper);
+		setCompilerHints(totalSummerReducer, 1, 1, 4+doubleSize, 1);
 		
 		MapContract<LabelTokenPair, PactDouble, PactString, PactDouble> tfidfTransformMapper = 
 			new MapContract<LabelTokenPair, PactDouble, PactString, PactDouble>(BayesThetaNormalizer.TfIdfTransform.class, "Tfidf Label Extractor");
@@ -250,12 +255,14 @@ public class NaiveBayesPlanAssembler implements PlanAssembler{
 		thetaFactorsSigmaVocab.setDegreeOfParallelism(noSubTasks);
 		thetaFactorsSigmaVocab.setFirstInput(overallWordCountReducer);
 		thetaFactorsSigmaVocab.setSecondInput(totalSummerReducer);
+		setCompilerHints(thetaFactorsSigmaVocab, 1, 1, doubleSize+doubleSize+intSize, 1);
 		
 		CrossContract<PactNull, ThetaNormalizerFactors, PactString, PactDouble, PactString, ThetaNormalizerFactors> thetaFactorsLabelWeights = 
 			new CrossContract<PactNull, ThetaNormalizerFactors, PactString, PactDouble, PactString, ThetaNormalizerFactors>(BayesThetaNormalizer.ThetaFactorsLabelWeights.class, "Theta Factors Combiner 2");
 		thetaFactorsLabelWeights.setDegreeOfParallelism(noSubTasks);
 		thetaFactorsLabelWeights.setFirstInput(thetaFactorsSigmaVocab);
 		thetaFactorsLabelWeights.setSecondInput(labelSummerReducer);
+		setCompilerHints(thetaFactorsLabelWeights, numLabels, 1, doubleSize+doubleSize+intSize+labelSize, 1);
 		
 		CoGroupContract<PactString, PactDouble, ThetaNormalizerFactors, PactString, PactDouble> thetaNormalizedLabels =
 			new CoGroupContract<PactString, PactDouble, ThetaNormalizerFactors, PactString, PactDouble>(BayesThetaNormalizer.ThetaNormalize.class, "Theta Normalizer");

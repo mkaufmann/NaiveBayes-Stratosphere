@@ -22,7 +22,8 @@ public class BayesFeatureMapper  {
 		public void map(final PactString label, final FeatureList features,
 				final Collector<PactString, NormalizedTokenCountList> out) {
 			NormalizedTokenCountList tokenList = new NormalizedTokenCountList();
-		    //TODO: Could be moved to input reader?
+			
+			//Count # of times a feature occurs in document
 			if (gramSize > 1) {
 				//TODO:!!!!!
 			} else {
@@ -35,13 +36,15 @@ public class BayesFeatureMapper  {
 				}
 			}
 			
-			double lengthNormalisationSum = 0;
+			// factor = sqrt((sum of all feature counts in documents)^2)
+			double lengthNormalisationFactor = 0;
 			for (Entry<PactString, Integer> entry : tokenList.entrySet()) {
 				int tokenCount = entry.getValue();
-				lengthNormalisationSum += tokenCount * tokenCount;
+				lengthNormalisationFactor += tokenCount * tokenCount;
 			}
+			lengthNormalisationFactor = Math.sqrt(lengthNormalisationFactor);
 		    
-			tokenList.setLengthNormalized(Math.sqrt(lengthNormalisationSum));
+			tokenList.setLengthNormalized(lengthNormalisationFactor);
 			
 			out.collect(label, tokenList);
 		}
