@@ -116,7 +116,7 @@ public class BayesFeatureReducer {
 	
 	//TODO: Consider minDf && minSupport
 	@SameKey
-	public static class Weight extends ReduceStub<LabelFeaturePair, PactDouble, LabelFeaturePair, PactDouble> {
+	public static class NormalizedTf extends ReduceStub<LabelFeaturePair, PactDouble, LabelFeaturePair, PactDouble> {
 		@Override
 		public void reduce(LabelFeaturePair tokenPair, Iterator<PactDouble> count,
 				Collector<LabelFeaturePair, PactDouble> out) {
