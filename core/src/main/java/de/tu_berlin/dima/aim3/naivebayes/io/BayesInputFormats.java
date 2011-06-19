@@ -44,9 +44,14 @@ public class BayesInputFormats {
 				pair.setKey(new PactString(tokenizer.nextToken()));
 
 				FeatureList value = new FeatureList();
-				while (tokenizer.hasMoreTokens())
+				if (tokenizer.hasMoreTokens())
 				{
-					value.add(new PactString(tokenizer.nextToken(" ")));
+					String featureList = tokenizer.nextToken();
+					StringTokenizer featureTokenizer = new StringTokenizer(featureList, " ");
+					while (featureTokenizer.hasMoreTokens())
+					{
+						value.add(new PactString(featureTokenizer.nextToken()));	
+					}
 				}
 				pair.setValue(value);
 				return true;
