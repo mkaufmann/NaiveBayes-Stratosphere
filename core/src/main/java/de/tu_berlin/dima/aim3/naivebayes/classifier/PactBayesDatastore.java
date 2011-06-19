@@ -7,12 +7,16 @@ import org.apache.mahout.classifier.bayes.common.BayesParameters;
 import org.apache.mahout.classifier.bayes.datastore.InMemoryBayesDatastore;
 import org.apache.mahout.classifier.bayes.exceptions.InvalidDatastoreException;
 
+import de.tu_berlin.dima.aim3.naivebayes.data.Feature;
+import de.tu_berlin.dima.aim3.naivebayes.data.Label;
 import de.tu_berlin.dima.aim3.naivebayes.data.LabelFeaturePair;
+import de.tu_berlin.dima.aim3.naivebayes.io.BayesInputFormats.FeatureSumInputFormat;
 import de.tu_berlin.dima.aim3.naivebayes.io.BayesInputFormats.IdfInputFormat;
+import de.tu_berlin.dima.aim3.naivebayes.io.BayesInputFormats.LabelSumInputFormat;
 import de.tu_berlin.dima.aim3.naivebayes.io.BayesInputFormats.ThetaNormalizedInputFormat;
-import de.tu_berlin.dima.aim3.naivebayes.io.BayesInputFormats.WeightInputFormat;
+import de.tu_berlin.dima.aim3.naivebayes.io.BayesInputFormats.TotalSumInputFormat;
 import eu.stratosphere.pact.common.type.base.PactDouble;
-import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.pact.common.type.base.PactNull;
 
 public class PactBayesDatastore extends InMemoryBayesDatastore {
 
@@ -23,11 +27,9 @@ public class PactBayesDatastore extends InMemoryBayesDatastore {
 	public final static String WEIGHT_DEFAULT_PATH = "/trainer-tfIdf/";
 	
 	private String modelBasePath;
-	private BayesParameters params;
 	
 	public PactBayesDatastore(BayesParameters params) {
 		super(params);
-		this.params = params;
 		modelBasePath = params.getBasePath();
 	}
 
@@ -75,7 +77,7 @@ public class PactBayesDatastore extends InMemoryBayesDatastore {
 		{
 			super.loadFeatureWeight(labelTokenPair.getSecond().toString(), 
 					labelTokenPair.getFirst().toString(), weight.getValue());	
-			//System.out.println("Feature Weight: " + labelTokenPair.getFirst().getValue() + " : " + labelTokenPair.getSecond().getValue() + " :: " + weight.getValue());
+			//LOG.info("AAA Feature Weight: " + labelTokenPair.getFirst().toString() + " : " + labelTokenPair.getSecond().toString() + " :: " + weight.getValue());
 			labelTokenPair = new LabelFeaturePair();
 			weight = new PactDouble();
 		}
@@ -83,22 +85,22 @@ public class PactBayesDatastore extends InMemoryBayesDatastore {
 
 	private void loadThetaNormalizer(String path) throws IOException, URISyntaxException {
 		ThetaNormalizedInputFormat input = new ThetaNormalizedInputFormat(path);
-		PactString label = new PactString();
+		Label label = new Label();
 		PactDouble weight = new PactDouble();
 		while (input.readPair(label, weight))
 		{
-			super.setThetaNormalizer(label.getValue(), weight.getValue());	
-			//System.out.println("Theta Normalized: " + label.getValue() + " :: " + weight.getValue());
-			label = new PactString();
+			super.setThetaNormalizer(label.toString(), weight.getValue());	
+			//LOG.info("AAA Theta Normalized: " + label.getValue() + " :: " + weight.getValue());
+			label = new Label();
 			weight = new PactDouble();
 		}
 	}
 
 	public void loadSumWeight(String path) throws IOException, URISyntaxException {
-		WeightInputFormat input = new WeightInputFormat(path);
-		PactString pactString = new PactString();
+		TotalSumInputFormat input = new TotalSumInputFormat(path);
+		PactNull pactNull = PactNull.getInstance();
 		PactDouble sigmaJsigmaK = new PactDouble();
-		while (input.readPair(pactString, sigmaJsigmaK))
+		while (input.readPair(pactNull, sigmaJsigmaK))
 		{
 			super.setSigmaJSigmaK(sigmaJsigmaK.getValue());
 			//System.out.println("SigmaJSigmaK: " + sigmaJsigmaK);
@@ -108,27 +110,27 @@ public class PactBayesDatastore extends InMemoryBayesDatastore {
 	}
 
 	private void loadLabelWeights(String path) throws IOException, URISyntaxException {
-		WeightInputFormat input = new WeightInputFormat(path);
-		PactString label = new PactString();
+		LabelSumInputFormat input = new LabelSumInputFormat(path);
+		Label label = new Label();
 		PactDouble weight = new PactDouble();
 		while (input.readPair(label, weight))
 		{
-			super.setSumLabelWeight(label.getValue(), weight.getValue());	
+			super.setSumLabelWeight(label.toString(), weight.getValue());	
 			//System.out.println("Sum Label Weight: " + label.getValue() + " :: " + weight.getValue());
-			label = new PactString();
+			label = new Label();
 			weight = new PactDouble();
 		}
 	}
 
 	private void loadFeatureWeights(String path) throws IOException, URISyntaxException {
-		WeightInputFormat input = new WeightInputFormat(path);
-		PactString feature = new PactString();
+		FeatureSumInputFormat input = new FeatureSumInputFormat(path);
+		Feature feature = new Feature();
 		PactDouble weight = new PactDouble();
 		while (input.readPair(feature, weight))
 		{
-			super.setSumFeatureWeight(feature.getValue(), weight.getValue());	
+			super.setSumFeatureWeight(feature.toString(), weight.getValue());	
 			//System.out.println("Sum Feature Weight: " + feature.getValue() + " :: " + weight.getValue());
-			feature = new PactString();
+			feature = new Feature();
 			weight = new PactDouble();
 		}
 	}

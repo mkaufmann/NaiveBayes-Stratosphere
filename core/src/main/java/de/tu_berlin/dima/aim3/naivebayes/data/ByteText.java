@@ -8,11 +8,10 @@ import java.util.Arrays;
 import eu.stratosphere.pact.common.type.Key;
 
 public class ByteText implements Key {
-	//byte[] value;
-	String value;
+	byte[] value;
 	
 	public ByteText(byte[] bytes) {
-		this.value = new String(bytes);
+		this.value = bytes;
 	}
 	
 	public ByteText() {
@@ -21,19 +20,39 @@ public class ByteText implements Key {
 
 	@Override
 	public void read(DataInput in) throws IOException {
-		value = in.readUTF();  
+		//value array is never allowed to be null!!
+		int length = in.readInt();
+		value = new byte[length];
+		in.readFully(value);
 	}
 
 	@Override
 	public void write(DataOutput out) throws IOException {
-		out.writeUTF(value);
+		//value array is never allowed to be null!!
+		out.writeInt(value.length);
+		out.write(value);
 	}
 
 	@Override
 	public int compareTo(Key o) {
 		//Sorts by length first and than by content
+		ByteText other = (ByteText) o;
 		
-		return value.compareTo(((ByteText)o).value);
+		//value array is never allowed to be null!!
+		int diff = value.length - other.value.length;
+		if(diff != 0) {
+			return diff;
+		}
+		else {
+			//Both have same length
+			for (int i = 0; i < value.length; i++) {
+				if(value[i] - other.value[i] != 0) {
+					return value[i] - other.value[i];
+				}
+			}
+		}
+		// TODO Auto-generated method stub
+		return 0;
 	}
 	
 	@Override
@@ -43,11 +62,24 @@ public class ByteText implements Key {
 
 	@Override
 	public int hashCode() {
-		return value.hashCode();
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + Arrays.hashCode(value);
+		return result;
 	}
 
 	@Override
 	public boolean equals(Object obj) {
-		return value.equals(((ByteText)obj).value);
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		
+		ByteText other = (ByteText) obj;
+		if (!Arrays.equals(value, other.value))
+			return false;
+		return true;
 	}
 }

@@ -12,12 +12,24 @@ import de.tu_berlin.dima.aim3.naivebayes.data.LabelFeaturePair;
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactDouble;
-import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.pact.common.type.base.PactNull;
 
 public class BayesInputFormats {
 
-	public static class WeightInputFormat extends BinaryInputFormat<PactString, PactDouble> {
-		public WeightInputFormat(String path) throws IOException,URISyntaxException {
+	public static class LabelSumInputFormat extends BinaryInputFormat<Label, PactDouble> {
+		public LabelSumInputFormat(String path) throws IOException,URISyntaxException {
+			super(path);
+		}
+	}
+	
+	public static class FeatureSumInputFormat extends BinaryInputFormat<Feature, PactDouble> {
+		public FeatureSumInputFormat(String path) throws IOException,URISyntaxException {
+			super(path);
+		}
+	}
+	
+	public static class TotalSumInputFormat extends BinaryInputFormat<PactNull, PactDouble> {
+		public TotalSumInputFormat(String path) throws IOException,URISyntaxException {
 			super(path);
 		}
 	}
@@ -28,7 +40,7 @@ public class BayesInputFormats {
 		}
 	}
 	
-	public static class ThetaNormalizedInputFormat extends BinaryInputFormat<PactString, PactDouble> {
+	public static class ThetaNormalizedInputFormat extends BinaryInputFormat<Label, PactDouble> {
 		public ThetaNormalizedInputFormat(String path) throws IOException, URISyntaxException {
 			super(path);
 		}
