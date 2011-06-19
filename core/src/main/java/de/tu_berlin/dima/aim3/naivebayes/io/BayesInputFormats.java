@@ -4,7 +4,9 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.StringTokenizer;
 
+import de.tu_berlin.dima.aim3.naivebayes.data.Feature;
 import de.tu_berlin.dima.aim3.naivebayes.data.FeatureList;
+import de.tu_berlin.dima.aim3.naivebayes.data.Label;
 import de.tu_berlin.dima.aim3.naivebayes.data.LabelFeaturePair;
 
 import eu.stratosphere.pact.common.io.TextInputFormat;
@@ -33,20 +35,20 @@ public class BayesInputFormats {
 	}
 	
 	
-	public static class NaiveBayesDataInputFormat extends TextInputFormat<PactString, FeatureList> {
+	public static class NaiveBayesDataInputFormat extends TextInputFormat<Label, FeatureList> {
 
 		@Override
-		public boolean readLine(KeyValuePair<PactString, FeatureList> pair, byte[] line) {
+		public boolean readLine(KeyValuePair<Label, FeatureList> pair, byte[] line) {
 			String lineString = new String(line);
 			StringTokenizer tokenizer = new StringTokenizer(lineString, "\t");
 			if (tokenizer.hasMoreTokens())
 			{
-				pair.setKey(new PactString(tokenizer.nextToken()));
+				pair.setKey(new Label(tokenizer.nextToken().getBytes()));
 
 				FeatureList value = new FeatureList();
 				while (tokenizer.hasMoreTokens())
 				{
-					value.add(new PactString(tokenizer.nextToken(" ")));
+					value.add(new Feature(tokenizer.nextToken(" ").getBytes()));
 				}
 				pair.setValue(value);
 				return true;

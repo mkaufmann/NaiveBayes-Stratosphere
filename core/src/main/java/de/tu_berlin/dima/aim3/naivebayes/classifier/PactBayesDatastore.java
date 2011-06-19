@@ -73,8 +73,8 @@ public class PactBayesDatastore extends InMemoryBayesDatastore {
 		PactDouble weight = new PactDouble();
 		while (input.readPair(labelTokenPair, weight))
 		{
-			super.loadFeatureWeight(labelTokenPair.getSecond().getValue(), 
-					labelTokenPair.getFirst().getValue(), weight.getValue());	
+			super.loadFeatureWeight(labelTokenPair.getSecond().toString(), 
+					labelTokenPair.getFirst().toString(), weight.getValue());	
 			//System.out.println("Feature Weight: " + labelTokenPair.getFirst().getValue() + " : " + labelTokenPair.getSecond().getValue() + " :: " + weight.getValue());
 			labelTokenPair = new LabelFeaturePair();
 			weight = new PactDouble();

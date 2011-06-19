@@ -1,11 +1,10 @@
 package de.tu_berlin.dima.aim3.naivebayes.data;
 
 import eu.stratosphere.pact.common.type.base.PactPair;
-import eu.stratosphere.pact.common.type.base.PactString;
 
-public class LabelFeaturePair extends PactPair<PactString, PactString>{
+public class LabelFeaturePair extends PactPair<Label, Feature>{
 
-	public LabelFeaturePair(PactString label, PactString feature) {
+	public LabelFeaturePair(Label label, Feature feature) {
 		super(label,feature);
 	}
 	
