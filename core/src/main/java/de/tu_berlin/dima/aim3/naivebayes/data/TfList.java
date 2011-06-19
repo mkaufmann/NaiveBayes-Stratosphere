@@ -8,24 +8,23 @@ import java.util.Set;
 import java.util.Map.Entry;
 
 import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.type.base.PactString;
 
 public class TfList implements Value{
-	HashMap<PactString, Integer> featureMap = new HashMap<PactString, Integer>();
+	HashMap<Feature, Integer> featureMap = new HashMap<Feature, Integer>();
 	
-	public void put(PactString token, int count) {
-		featureMap.put(token, count);
+	public void put(Feature feature, int count) {
+		featureMap.put(feature, count);
 	}
 	
-	public int get(PactString token) {
-		return featureMap.get(token);
+	public int get(Feature feature) {
+		return featureMap.get(feature);
 	}
 	
-	public boolean containsKey(PactString token) {
-		return featureMap.containsKey(token);
+	public boolean containsKey(Feature feature) {
+		return featureMap.containsKey(feature);
 	}
 	
-	public Set<Entry<PactString, Integer>> entrySet() {
+	public Set<Entry<Feature, Integer>> entrySet() {
 		return featureMap.entrySet();
 	}
 
@@ -34,10 +33,10 @@ public class TfList implements Value{
 		int count = in.readInt();
 		
 		for (int i = 0; i < count; i++) {
-			PactString token = new PactString();
-			token.read(in);
+			Feature feature = new Feature();
+			feature.read(in);
 			int tf = in.readInt();
-			featureMap.put(token, tf);
+			featureMap.put(feature, tf);
 		}
 	}
 
@@ -45,7 +44,7 @@ public class TfList implements Value{
 	public void write(DataOutput out) throws IOException {
 		out.writeInt(featureMap.size());
 		
-		for (Entry<PactString, Integer> entry : featureMap.entrySet()) {
+		for (Entry<Feature, Integer> entry : featureMap.entrySet()) {
 			entry.getKey().write(out);
 			out.writeInt(entry.getValue());
 		}

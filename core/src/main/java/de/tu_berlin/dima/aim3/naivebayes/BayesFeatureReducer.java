@@ -2,16 +2,16 @@ package de.tu_berlin.dima.aim3.naivebayes;
 
 import java.util.Iterator;
 
+import de.tu_berlin.dima.aim3.naivebayes.data.Feature;
+import de.tu_berlin.dima.aim3.naivebayes.data.FeatureCountPair;
+import de.tu_berlin.dima.aim3.naivebayes.data.Label;
 import de.tu_berlin.dima.aim3.naivebayes.data.LabelFeaturePair;
-import de.tu_berlin.dima.aim3.naivebayes.data.TokenCountPair;
-
 import eu.stratosphere.pact.common.contract.OutputContract.SameKey;
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.ReduceStub;
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.common.type.base.PactString;
 
 public class BayesFeatureReducer {
 	private static double minDf = -1;
@@ -21,15 +21,14 @@ public class BayesFeatureReducer {
 	 * Count # of occurrences per label in all documents.
 	 * 
 	 * Sums up # of occurrences for a specific label.
-	 * @author mkaufmann
 	 *
 	 */
 	@SameKey
 	@Combinable
-	public static class LabelCount extends ReduceStub<PactString, PactInteger, PactString, PactInteger> {
+	public static class LabelCount extends ReduceStub<Label, PactInteger, Label, PactInteger> {
 		@Override
-		public void reduce(PactString label, Iterator<PactInteger> count,
-				Collector<PactString, PactInteger> out) {
+		public void reduce(Label label, Iterator<PactInteger> count,
+				Collector<Label, PactInteger> out) {
 			int sum = 0;
 			while(count.hasNext()) {
 				sum += count.next().getValue();
@@ -39,18 +38,18 @@ public class BayesFeatureReducer {
 		}
 
 		@Override
-		public void combine(PactString label, Iterator<PactInteger> counts,
-				Collector<PactString, PactInteger> out) {
+		public void combine(Label label, Iterator<PactInteger> counts,
+				Collector<Label, PactInteger> out) {
 			reduce(label, counts, out);
 		}
 	}
 	
 	@SameKey
 	@Combinable
-	public static class FeatureTf extends ReduceStub<PactString, PactInteger, PactString, PactInteger> {
+	public static class FeatureTf extends ReduceStub<Feature, PactInteger, Feature, PactInteger> {
 		@Override
-		public void reduce(PactString feature, Iterator<PactInteger> count,
-				Collector<PactString, PactInteger> out) {
+		public void reduce(Feature feature, Iterator<PactInteger> count,
+				Collector<Feature, PactInteger> out) {
 			int sum = 0;
 			while(count.hasNext()) {
 				sum += count.next().getValue();
@@ -60,8 +59,8 @@ public class BayesFeatureReducer {
 		}
 
 		@Override
-		public void combine(PactString feature, Iterator<PactInteger> counts,
-				Collector<PactString, PactInteger> out) {
+		public void combine(Feature feature, Iterator<PactInteger> counts,
+				Collector<Feature, PactInteger> out) {
 			reduce(feature, counts, out);
 		}
 	}
@@ -75,42 +74,43 @@ public class BayesFeatureReducer {
 	 */
 	@SameKey
 	@Combinable
-	public static class FeatureCount extends ReduceStub<PactString, PactInteger, PactString, PactInteger> {
+	public static class FeatureCount extends ReduceStub<Feature, PactInteger, Feature, PactInteger> {
 		@Override
-		public void reduce(PactString feature, Iterator<PactInteger> count,
-				Collector<PactString, PactInteger> out) {
+		public void reduce(Feature feature, Iterator<PactInteger> count,
+				Collector<Feature, PactInteger> out) {
 			int currentCorpusDf = 0;
 			while(count.hasNext()) {
 				currentCorpusDf += count.next().getValue();
 			}
 			
 			if (minDf > 0.0 && currentCorpusDf < minDf) {
-				System.out.println("Skipped " + feature.getValue() + " less than minDf");
+				System.out.println("Skipped " + feature.toString() + " less than minDf");
 			} else {
 				out.collect(feature, new PactInteger(currentCorpusDf));
 			}
 		}
 
 		@Override
-		public void combine(PactString feature, Iterator<PactInteger> counts,
-				Collector<PactString, PactInteger> out) {
+		public void combine(Feature feature, Iterator<PactInteger> counts,
+				Collector<Feature, PactInteger> out) {
 			reduce(feature, counts, out);
 		}
 	}
 	
 	//TODO: Consider minDf && minSupport
-	public static class DocumentFrequency extends ReduceStub<LabelFeaturePair, PactInteger, PactString, TokenCountPair> {
+	public static class DocumentFrequency extends ReduceStub<LabelFeaturePair, PactInteger, Label, FeatureCountPair> {
 		@Override
-		public void reduce(LabelFeaturePair tokenPair, Iterator<PactInteger> count,
-				Collector<PactString, TokenCountPair> out) {
+		public void reduce(LabelFeaturePair labelFeature, Iterator<PactInteger> count,
+				Collector<Label, FeatureCountPair> out) {
 			int sum = 0;
 			while(count.hasNext()) {
 				sum += count.next().getValue();
 			}
-			TokenCountPair tokenCountPair = new TokenCountPair();
-			tokenCountPair.setFirst(tokenPair.getSecond());
-			tokenCountPair.setSecond(new PactInteger(sum));
-			out.collect(tokenPair.getFirst(), tokenCountPair);
+			
+			FeatureCountPair featureCountPair = new FeatureCountPair();
+			featureCountPair.setFirst(labelFeature.getSecond());
+			featureCountPair.setSecond(new PactInteger(sum));
+			out.collect(labelFeature.getFirst(), featureCountPair);
 		}
 	}
 	

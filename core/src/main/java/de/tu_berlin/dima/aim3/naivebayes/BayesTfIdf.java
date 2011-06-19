@@ -2,8 +2,10 @@ package de.tu_berlin.dima.aim3.naivebayes;
 
 import java.util.Iterator;
 
+import de.tu_berlin.dima.aim3.naivebayes.data.Feature;
+import de.tu_berlin.dima.aim3.naivebayes.data.Label;
 import de.tu_berlin.dima.aim3.naivebayes.data.LabelFeaturePair;
-import de.tu_berlin.dima.aim3.naivebayes.data.TokenCountPair;
+import de.tu_berlin.dima.aim3.naivebayes.data.FeatureCountPair;
 import eu.stratosphere.pact.common.contract.OutputContract.SameKey;
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.stub.Collector;
@@ -13,32 +15,17 @@ import eu.stratosphere.pact.common.stub.ReduceStub;
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactNull;
-import eu.stratosphere.pact.common.type.base.PactString;
 
 public class BayesTfIdf {
 	
-	public static class TotalDistinctFeatureCountMapper extends MapStub<PactString, PactInteger, PactNull, PactInteger> {
+	public static class TotalDistinctFeatureCountMapper extends MapStub<Feature, PactInteger, PactNull, PactInteger> {
 		private final static PactInteger ONE = new PactInteger(1);
 		
 		@Override
-		public void map(PactString feature, PactInteger frequency,
+		public void map(Feature feature, PactInteger frequency,
 				Collector<PactNull, PactInteger> out) {
 			out.collect(PactNull.getInstance(), ONE);
 		}
-	}
-
-
-	@SameKey
-	public static class TfIdfCalculator extends MatchStub<LabelFeaturePair, PactDouble, PactDouble, LabelFeaturePair, PactDouble> {
-
-		@Override
-		public void match(LabelFeaturePair labelFeature, PactDouble weightFromWeightCalculator,
-				PactDouble weightFromFeatureReducer,
-				Collector<LabelFeaturePair, PactDouble> out) {
-			double idfTimesDIJ = weightFromFeatureReducer.getValue() * weightFromWeightCalculator.getValue();
-			out.collect(labelFeature, new PactDouble(idfTimesDIJ));
-		}
-
 	}
 	
 	@Combinable
@@ -64,12 +51,26 @@ public class BayesTfIdf {
 			reduce(key, wordCountIt, out);
 		}
 	}
-	
-	//@SuperKey ??
-	public static class IdfCalculator extends MatchStub<PactString, PactInteger, TokenCountPair, LabelFeaturePair, PactDouble> {
+
+
+	@SameKey
+	public static class TfIdfCalculator extends MatchStub<LabelFeaturePair, PactDouble, PactDouble, LabelFeaturePair, PactDouble> {
 
 		@Override
-		public void match(PactString label, PactInteger labelDocCount, TokenCountPair df,
+		public void match(LabelFeaturePair labelFeature, PactDouble weightFromWeightCalculator,
+				PactDouble weightFromFeatureReducer,
+				Collector<LabelFeaturePair, PactDouble> out) {
+			double idfTimesDIJ = weightFromFeatureReducer.getValue() * weightFromWeightCalculator.getValue();
+			out.collect(labelFeature, new PactDouble(idfTimesDIJ));
+		}
+
+	}
+	
+	//@SuperKey ??
+	public static class IdfCalculator extends MatchStub<Label, PactInteger, FeatureCountPair, LabelFeaturePair, PactDouble> {
+
+		@Override
+		public void match(Label label, PactInteger labelDocCount, FeatureCountPair df,
 				Collector<LabelFeaturePair, PactDouble> out) {
 	        int labelDocumentCount = labelDocCount.getValue();
 	        double logIdf = Math.log(labelDocumentCount / (double)df.getSecond().getValue());

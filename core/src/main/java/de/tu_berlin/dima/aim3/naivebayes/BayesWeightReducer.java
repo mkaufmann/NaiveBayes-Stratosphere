@@ -2,20 +2,66 @@ package de.tu_berlin.dima.aim3.naivebayes;
 
 import java.util.Iterator;
 
+import de.tu_berlin.dima.aim3.naivebayes.data.Feature;
+import de.tu_berlin.dima.aim3.naivebayes.data.Label;
+
 import eu.stratosphere.pact.common.contract.OutputContract.SameKey;
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.ReduceStub;
 import eu.stratosphere.pact.common.type.base.PactDouble;
-import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.pact.common.type.base.PactNull;
 
 public class BayesWeightReducer {
+	
 	@SameKey
 	@Combinable
-	public static class Summer extends ReduceStub<PactString, PactDouble, PactString, PactDouble> {
+	public static class FeatureSummer extends ReduceStub<Feature, PactDouble, Feature, PactDouble> {
 		@Override
-		public void reduce(PactString key, Iterator<PactDouble> values,
-				Collector<PactString, PactDouble> out) {
+		public void reduce(Feature feature, Iterator<PactDouble> values,
+				Collector<Feature, PactDouble> out) {
+			double sum = 0;
+			while(values.hasNext()) {
+				sum += values.next().getValue();
+			}
+			
+			out.collect(feature, new PactDouble(sum));
+		}
+
+		@Override
+		public void combine(Feature key, Iterator<PactDouble> values,
+				Collector<Feature, PactDouble> out) {
+			reduce(key, values, out);
+		}
+	}
+	
+	@SameKey
+	@Combinable
+	public static class LabelSummer extends ReduceStub<Label, PactDouble, Label, PactDouble> {
+		@Override
+		public void reduce(Label feature, Iterator<PactDouble> values,
+				Collector<Label, PactDouble> out) {
+			double sum = 0;
+			while(values.hasNext()) {
+				sum += values.next().getValue();
+			}
+			
+			out.collect(feature, new PactDouble(sum));
+		}
+
+		@Override
+		public void combine(Label key, Iterator<PactDouble> values,
+				Collector<Label, PactDouble> out) {
+			reduce(key, values, out);
+		}
+	}
+	
+	@SameKey
+	@Combinable
+	public static class NullSummer extends ReduceStub<PactNull, PactDouble, PactNull, PactDouble> {
+		@Override
+		public void reduce(PactNull key, Iterator<PactDouble> values,
+				Collector<PactNull, PactDouble> out) {
 			double sum = 0;
 			while(values.hasNext()) {
 				sum += values.next().getValue();
@@ -25,8 +71,8 @@ public class BayesWeightReducer {
 		}
 
 		@Override
-		public void combine(PactString key, Iterator<PactDouble> values,
-				Collector<PactString, PactDouble> out) {
+		public void combine(PactNull key, Iterator<PactDouble> values,
+				Collector<PactNull, PactDouble> out) {
 			reduce(key, values, out);
 		}
 	}

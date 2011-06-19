@@ -11,6 +11,7 @@ import java.util.Map;
 import org.apache.mahout.classifier.ConfusionMatrix;
 
 import de.tu_berlin.dima.aim3.naivebayes.data.FeatureList;
+import de.tu_berlin.dima.aim3.naivebayes.data.Label;
 import de.tu_berlin.dima.aim3.naivebayes.data.LabelPair;
 import de.tu_berlin.dima.aim3.naivebayes.io.BayesInputFormats.NaiveBayesDataInputFormat;
 import eu.stratosphere.pact.common.contract.DataSinkContract;
@@ -22,7 +23,6 @@ import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.common.type.base.PactString;
 
 public class NBayesClassifierPlanAssembler implements PlanAssembler {
 
@@ -44,12 +44,12 @@ public class NBayesClassifierPlanAssembler implements PlanAssembler {
 		String modelData = (args.length > 2 ? args[2] : "file:///home/mkaufmann/datasets/model");
 		String outputData    = (args.length > 3 ? args[3] : "file:///home/mkaufmann/datasets/result");
 		
-		DataSourceContract<PactString, FeatureList> source = 
-			new DataSourceContract<PactString, FeatureList>(NaiveBayesDataInputFormat.class, testData, "Classifier test data");
+		DataSourceContract<Label, FeatureList> source = 
+			new DataSourceContract<Label, FeatureList>(NaiveBayesDataInputFormat.class, testData, "Classifier test data");
 		source.setDegreeOfParallelism(noSubTasks);
 		
-		MapContract<PactString, FeatureList, LabelPair, PactInteger> classifier =
-			new MapContract<PactString, FeatureList, LabelPair, PactInteger>(ClassifyingMapper.class, "Classifying mapper");
+		MapContract<Label, FeatureList, LabelPair, PactInteger> classifier =
+			new MapContract<Label, FeatureList, LabelPair, PactInteger>(ClassifyingMapper.class, "Classifying mapper");
 		classifier.setDegreeOfParallelism(noSubTasks);
 		classifier.setInput(source);
 		classifier.setStubParameter(ClassifyingMapper.MODEL_BASE_PATH, modelData);
