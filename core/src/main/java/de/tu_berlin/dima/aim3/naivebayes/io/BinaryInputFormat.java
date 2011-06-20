@@ -22,8 +22,13 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Queue;
 
 import eu.stratosphere.nephele.fs.FSDataInputStream;
+import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.pact.common.type.Key;
@@ -33,11 +38,62 @@ public abstract class BinaryInputFormat<K extends Key, V extends Value> {
 	
 	protected DataInputStream dataInputStream;
 	
-	public BinaryInputFormat(String path) throws IOException, URISyntaxException {
+	private Queue<FileStatus> files = new LinkedList<FileStatus>();
+	private FileSystem fs;
+	
+	public BinaryInputFormat(String pathString) throws IOException, URISyntaxException {
 
-		FileSystem fileSystem = FileSystem.get(new URI(path));
+		fs = FileSystem.get(new URI(pathString));
+		Path path = new Path(pathString);
+		/*FileStatus fileStatus = fileSystem.getFileStatus(dirPath);
+		if (fileStatus.isDir())
+		{
+			fileStatus.
+		}
+		System.out.println("Path exists: " + fileSystem.exists());
 		FSDataInputStream fsDataInputStream = fileSystem.open(new Path(path));
-		dataInputStream = new DataInputStream(fsDataInputStream);
+		dataInputStream = new DataInputStream(fsDataInputStream);*/
+		final FileStatus pathFile = fs.getFileStatus(path);
+
+		if (pathFile.isDir()) {
+			// input is directory. list all contained files
+			final FileStatus[] dir = fs.listStatus(path);
+			for (int i = 0; i < dir.length; i++) {
+				if (!dir[i].isDir()) {
+					String fileName = dir[i].getPath().getName();
+					if (fileName.startsWith(".") == false)
+					{
+						files.add(dir[i]);						
+					}
+				}
+			}
+
+		} else {
+			files.add(pathFile);
+		}
+		getNextReader();
+	}
+	
+	private boolean getNextReader()
+	{
+		if (files.isEmpty() == false)
+		{
+			FileStatus fileStatus = files.poll();
+			FSDataInputStream fsDataInputStream;
+			try {
+				fsDataInputStream = fs.open(fileStatus.getPath());
+				dataInputStream = new DataInputStream(fsDataInputStream);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+				return false;
+			}
+			return true;
+		}
+		else
+		{
+			return false;
+		}
 	}
 	
 	public boolean readPair(K keyHolder, V valueHolder) throws IOException
@@ -50,6 +106,10 @@ public abstract class BinaryInputFormat<K extends Key, V extends Value> {
 		}
 		catch (EOFException e) {
 			dataInputStream.close();
+			if (getNextReader() == true)
+			{
+				return readPair(keyHolder, valueHolder);
+			}
 			return false;
 		}
 	}
