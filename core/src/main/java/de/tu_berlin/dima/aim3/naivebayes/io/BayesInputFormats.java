@@ -19,13 +19,11 @@ package de.tu_berlin.dima.aim3.naivebayes.io;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.util.StringTokenizer;
 
 import de.tu_berlin.dima.aim3.naivebayes.data.Feature;
 import de.tu_berlin.dima.aim3.naivebayes.data.FeatureList;
 import de.tu_berlin.dima.aim3.naivebayes.data.Label;
 import de.tu_berlin.dima.aim3.naivebayes.data.LabelFeaturePair;
-
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactDouble;
@@ -68,28 +66,47 @@ public class BayesInputFormats {
 
 		@Override
 		public boolean readLine(KeyValuePair<Label, FeatureList> pair, byte[] line) {
-			String lineString = new String(line);
-			StringTokenizer tokenizer = new StringTokenizer(lineString, "\t");
-			if (tokenizer.hasMoreTokens())
-			{
-				pair.setKey(new Label(tokenizer.nextToken().getBytes()));
-
-				FeatureList value = new FeatureList();
-				if (tokenizer.hasMoreTokens())
-				{
-					String featureList = tokenizer.nextToken();
-					StringTokenizer featureTokenizer = new StringTokenizer(featureList, " ");
-					while (featureTokenizer.hasMoreTokens())
-					{
-						value.add(new Feature(featureTokenizer.nextToken().getBytes()));	
-					}
-				}
-				pair.setValue(value);
-				return true;
+			FeatureList value = new FeatureList();
+			
+			//Read label
+			int pos = -1;
+			int start = 0;
+			int len = 0;
+			while(++pos < line.length && line[pos] != '\t');
+			//If no label was found exit
+			if(pos == line.length) {
+				return false;
 			}
-			return false;
+			
+			len = pos - start;
+			byte[] labelArr = new byte[len];
+			System.arraycopy(line, start, labelArr, 0, len);
+			start = pos + 1;
+			pair.setKey(new Label(labelArr));
+			
+			//If no features exit
+			if(start == line.length) {
+				return false;
+			}
+			
+			//Read features
+			while(true) {
+				while(++pos < line.length && line[pos] != ' ');
+				len = pos - start;
+				byte[] featureArr = new byte[len];
+				System.arraycopy(line, start, featureArr, 0, len);
+				value.add(new Feature(featureArr));
+				
+				//Skip to next non space character
+				while(++pos < line.length && line[pos] == ' ');
+				start = pos;
+				if(pos >= line.length) {
+					break;
+				}
+			}
+			pair.setValue(value);
+			
+			return true;
 		}
-
 	}
-	
 }
