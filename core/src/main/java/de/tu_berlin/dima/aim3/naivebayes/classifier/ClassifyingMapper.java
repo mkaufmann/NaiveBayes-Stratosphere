@@ -17,6 +17,8 @@
 
 package de.tu_berlin.dima.aim3.naivebayes.classifier;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.mahout.classifier.ClassifierResult;
 import org.apache.mahout.classifier.bayes.algorithm.BayesAlgorithm;
 import org.apache.mahout.classifier.bayes.common.BayesParameters;
@@ -36,8 +38,14 @@ import eu.stratosphere.pact.common.type.base.PactInteger;
 
 public class ClassifyingMapper extends MapStub<Label, FeatureList, LabelPair, PactInteger> {
 
+	
+	private static final Log LOG = LogFactory.getLog(ClassifyingMapper.class);
+	
 	private static final PactInteger ONE = new PactInteger(1);
 	public static final String MODEL_BASE_PATH = "bayes.model.base.path";
+	
+	private boolean firstCall = true;
+	private String modelBasePath;
 	
 	private int gramSize = 1;
 	private ClassifierContext classifier;
@@ -46,6 +54,28 @@ public class ClassifyingMapper extends MapStub<Label, FeatureList, LabelPair, Pa
 	@Override
 	public void map(Label correctLabel, FeatureList features,
 			Collector<LabelPair, PactInteger> out) {
+		
+		if (firstCall)
+		{
+			LOG.info("Reading model.");
+			try {
+				Algorithm algorithm = new BayesAlgorithm();
+				// TODO: Support cbayes
+
+				BayesParameters params = new BayesParameters();
+				params.setBasePath(modelBasePath);
+				Datastore datastore = new PactBayesDatastore(params);
+
+				classifier = new ClassifierContext(algorithm, datastore);
+				classifier.initialize();
+
+				// defaultCategory = parameters.getString("", "");
+				// gramSize = params.getGramSize();
+			} catch (InvalidDatastoreException e) {
+			}
+			LOG.info("Reading model finished");
+			firstCall = false;
+		}
 		
 		//TODO: Use gramsSize
 		String[] document = new String[features.size()];
@@ -70,22 +100,8 @@ public class ClassifyingMapper extends MapStub<Label, FeatureList, LabelPair, Pa
 	@Override
 	public void configure(Configuration conf) {
 		super.configure(conf);
-		
-		try {
-			Algorithm algorithm = new BayesAlgorithm();
-			// TODO: Support cbayes
-
-			BayesParameters params = new BayesParameters();
-			params.setBasePath(conf.getString(MODEL_BASE_PATH, ""));
-			Datastore datastore = new PactBayesDatastore(params);
-
-			classifier = new ClassifierContext(algorithm, datastore);
-			classifier.initialize();
-
-			// defaultCategory = parameters.getString("", "");
-			// gramSize = params.getGramSize();
-		} catch (InvalidDatastoreException e) {
-		}
+		modelBasePath = conf.getString(MODEL_BASE_PATH, "");
+		firstCall = true;
 	}
 
 	
