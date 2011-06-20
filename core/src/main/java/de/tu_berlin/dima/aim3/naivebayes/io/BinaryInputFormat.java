@@ -22,10 +22,11 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Queue;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.fs.FSDataInputStream;
 import eu.stratosphere.nephele.fs.FileStatus;
@@ -36,6 +37,9 @@ import eu.stratosphere.pact.common.type.Value;
 
 public abstract class BinaryInputFormat<K extends Key, V extends Value> {
 	
+	private static final Log LOG = LogFactory.getLog(BinaryInputFormat.class);
+
+	
 	protected DataInputStream dataInputStream;
 	
 	private Queue<FileStatus> files = new LinkedList<FileStatus>();
@@ -45,14 +49,6 @@ public abstract class BinaryInputFormat<K extends Key, V extends Value> {
 
 		fs = FileSystem.get(new URI(pathString));
 		Path path = new Path(pathString);
-		/*FileStatus fileStatus = fileSystem.getFileStatus(dirPath);
-		if (fileStatus.isDir())
-		{
-			fileStatus.
-		}
-		System.out.println("Path exists: " + fileSystem.exists());
-		FSDataInputStream fsDataInputStream = fileSystem.open(new Path(path));
-		dataInputStream = new DataInputStream(fsDataInputStream);*/
 		final FileStatus pathFile = fs.getFileStatus(path);
 
 		if (pathFile.isDir()) {
@@ -81,6 +77,7 @@ public abstract class BinaryInputFormat<K extends Key, V extends Value> {
 			FileStatus fileStatus = files.poll();
 			FSDataInputStream fsDataInputStream;
 			try {
+				LOG.info("Opening reader :" + fileStatus.getPath());
 				fsDataInputStream = fs.open(fileStatus.getPath());
 				dataInputStream = new DataInputStream(fsDataInputStream);
 			} catch (IOException e) {
@@ -106,6 +103,7 @@ public abstract class BinaryInputFormat<K extends Key, V extends Value> {
 		}
 		catch (EOFException e) {
 			dataInputStream.close();
+			LOG.info("Data input stream closed");
 			if (getNextReader() == true)
 			{
 				return readPair(keyHolder, valueHolder);
