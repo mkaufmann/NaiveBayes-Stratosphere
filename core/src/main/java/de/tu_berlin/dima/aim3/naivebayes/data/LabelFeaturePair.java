@@ -17,6 +17,7 @@
 
 package de.tu_berlin.dima.aim3.naivebayes.data;
 
+import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.base.PactPair;
 
 public class LabelFeaturePair extends PactPair<Label, Feature>{
@@ -27,6 +28,19 @@ public class LabelFeaturePair extends PactPair<Label, Feature>{
 	
 	public LabelFeaturePair(){
 		super();
+	}
+	
+	@Override
+	public int compareTo(final Key o) {
+		if (!(o instanceof PactPair<?, ?>))
+			throw new ClassCastException("Cannot compare "
+					+ o.getClass().getName() + " to N_Pair.");
+
+		int result = this.getSecond().compareTo(
+				((PactPair<?, ?>) o).getSecond());
+		if (result == 0)
+			result = this.getFirst().compareTo(((PactPair<?, ?>) o).getFirst());
+		return result;
 	}
 
 }
